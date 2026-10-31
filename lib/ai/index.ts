@@ -9,19 +9,44 @@ export interface ImageInput {
   mimeType: string;
 }
 
+export interface ExtractionOptions {
+  provider?: "auto" | "gemini" | "litert_hybrid" | "litert" | "local" | "mock";
+  apiKey?: string;
+  ollamaBaseUrl?: string;
+  ollamaModel?: string;
+  litertVisionUrl?: string;
+  litertReasoningUrl?: string;
+}
+
 export interface ExtractionResult {
   data: ExtractedMenu;
   provider: "local" | "litert" | "gemini" | "mock";
   modelName: string;
 }
 
-export async function extractMenu(images: ImageInput[]): Promise<ExtractionResult> {
-  const provider = (process.env.AI_PROVIDER || "auto").toLowerCase();
+export async function extractMenu(
+  images: ImageInput[],
+  options?: ExtractionOptions
+): Promise<ExtractionResult> {
+  const provider = (options?.provider || process.env.AI_PROVIDER || "auto").toLowerCase();
   
-  // 1. Forzar Pipeline Híbrido LiteRT (MiniCPM-V 4.7 + Gemma 4 26B)
+  // 1. Forzar Simulación Demo
+  if (provider === "mock") {
+    console.log("[AI Engine] Ejecutando Simulación Demo...");
+    return {
+      data: getMockExtractedMenu(),
+      provider: "mock",
+      modelName: "Simulación Demo (Offline)",
+    };
+  }
+
+  // 2. Forzar Pipeline Híbrido LiteRT (MiniCPM-V 4.7 + Gemma 4 26B)
   if (provider === "hybrid" || provider === "litert_hybrid") {
     console.log(`[AI Engine] Ejecutando Pipeline Híbrido LiteRT (MiniCPM-V 1B + Gemma 4 26B)...`);
-    const data = await extractMenuWithLiteRTHybrid(images);
+    const data = await extractMenuWithLiteRTHybrid(images, {
+      visionUrl: options?.litertVisionUrl,
+      reasoningUrl: options?.litertReasoningUrl,
+    });
     return {
       data,
       provider: "litert",
@@ -29,10 +54,10 @@ export async function extractMenu(images: ImageInput[]): Promise<ExtractionResul
     };
   }
 
-  // 2. Forzar LiteRT-LM (un solo paso)
+  // 3. Forzar LiteRT-LM (un solo paso)
   if (provider === "litert") {
-    const litertModel = process.env.LITERT_MODEL || "minicpm-v4.7-1b";
-    const litertBaseUrl = process.env.LITERT_BASE_URL || "http://127.0.0.1:11436";
+    const litertModel = options?.ollamaModel || process.env.LITERT_MODEL || "minicpm-v4.7-1b";
+    const litertBaseUrl = options?.litertVisionUrl || process.env.LITERT_BASE_URL || "http://127.0.0.1:11436";
     console.log(`[AI Engine] Ejecutando LiteRT-LM (${litertModel})...`);
     const data = await extractMenuWithLiteRT(images, {
       model: litertModel,
@@ -41,11 +66,11 @@ export async function extractMenu(images: ImageInput[]): Promise<ExtractionResul
     return { data, provider: "litert", modelName: `LiteRT (${litertModel})` };
   }
 
-  // 3. Forzar Ollama
+  // 4. Forzar Ollama
   if (provider === "local" || provider === "ollama") {
-    const ollamaModel = process.env.OLLAMA_MODEL || "qwen3-vl:8B";
-    const ollamaBaseUrl = process.env.OLLAMA_BASE_URL || "http://127.0.0.1:11434";
-    console.log(`[AI Engine] Ejecutando Ollama (${ollamaModel})...`);
+    const ollamaModel = options?.ollamaModel || process.env.OLLAMA_MODEL || "qwen3-vl:8B";
+    const ollamaBaseUrl = options?.ollamaBaseUrl || process.env.OLLAMA_BASE_URL || "http://127.0.0.1:11434";
+    console.log(`[AI Engine] Ejecutando Ollama (${ollamaModel}) en ${ollamaBaseUrl}...`);
     const data = await extractMenuWithLocalOllama(images, {
       model: ollamaModel,
       baseUrl: ollamaBaseUrl,
@@ -53,17 +78,17 @@ export async function extractMenu(images: ImageInput[]): Promise<ExtractionResul
     return { data, provider: "local", modelName: `Ollama (${ollamaModel})` };
   }
 
-  // 4. Forzar Google Gemini Cloud
+  // 5. Forzar Google Gemini Cloud
   if (provider === "gemini") {
     console.log("[AI Engine] Ejecutando Google Gemini Flash API...");
-    const data = await extractWithGemini(images);
+    const data = await extractWithGemini(images, options?.apiKey);
     return { data, provider: "gemini", modelName: "Gemini 1.5 Flash" };
   }
 
-  // 5. Modo Auto (Prioridad: LiteRT Híbrido -> LiteRT Simple -> Ollama -> Gemini -> Mock)
+  // 6. Modo Auto (Prioridad: LiteRT Híbrido -> LiteRT Simple -> Ollama -> Gemini -> Mock)
   // Comprobar si ambos puertos de LiteRT están activos (11436 para Vision y 11435 para Reasoning)
-  const visionUrl = process.env.LITERT_VISION_URL || "http://127.0.0.1:11436";
-  const reasoningUrl = process.env.LITERT_REASONING_URL || "http://127.0.0.1:11435";
+  const visionUrl = options?.litertVisionUrl || process.env.LITERT_VISION_URL || "http://127.0.0.1:11436";
+  const reasoningUrl = options?.litertReasoningUrl || process.env.LITERT_REASONING_URL || "http://127.0.0.1:11435";
   
   try {
     const [visCheck, resCheck] = await Promise.allSettled([
@@ -92,14 +117,14 @@ export async function extractMenu(images: ImageInput[]): Promise<ExtractionResul
   }
 
   // Check Ollama
-  const ollamaBaseUrl = process.env.OLLAMA_BASE_URL || "http://127.0.0.1:11434";
+  const ollamaBaseUrl = options?.ollamaBaseUrl || process.env.OLLAMA_BASE_URL || "http://127.0.0.1:11434";
   try {
     const ollamaCheck = await fetch(`${ollamaBaseUrl}/api/tags`, {
       signal: AbortSignal.timeout(600),
     });
 
     if (ollamaCheck.ok) {
-      const ollamaModel = process.env.OLLAMA_MODEL || "qwen3-vl:8B";
+      const ollamaModel = options?.ollamaModel || process.env.OLLAMA_MODEL || "qwen3-vl:8B";
       console.log(`[AI Engine Auto] Ollama detectado en ${ollamaBaseUrl}. Usando ${ollamaModel}...`);
       const data = await extractMenuWithLocalOllama(images, {
         model: ollamaModel,
@@ -112,11 +137,20 @@ export async function extractMenu(images: ImageInput[]): Promise<ExtractionResul
   }
 
   // Check Gemini Cloud
-  const geminiKey = process.env.GEMINI_API_KEY;
+  const geminiKey = options?.apiKey || process.env.GEMINI_API_KEY;
   if (geminiKey && geminiKey !== "your-gemini-api-key") {
-    console.log("[AI Engine Auto] Usando Google Gemini Flash...");
-    const data = await extractWithGemini(images);
-    return { data, provider: "gemini", modelName: "Gemini 1.5 Flash" };
+    try {
+      console.log("[AI Engine Auto] Usando Google Gemini Flash...");
+      const data = await extractWithGemini(images, geminiKey);
+      return { data, provider: "gemini", modelName: "Gemini 1.5 Flash" };
+    } catch (err: any) {
+      console.warn("[AI Engine Auto] Falló Gemini en modo auto, usando simulación:", err.message);
+      return {
+        data: getMockExtractedMenu(),
+        provider: "mock",
+        modelName: "Simulación Demo (Fallback por error en Gemini)",
+      };
+    }
   }
 
   // Fallback Mock

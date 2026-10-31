@@ -6,12 +6,24 @@ import { ImageUploader, CompressedImage } from "@/components/admin/ImageUploader
 import { AiProgressStepper } from "@/components/admin/AiProgressStepper";
 import { MenuEditor } from "@/components/admin/MenuEditor";
 import { QrDownloadModal } from "@/components/qr/QrDownloadModal";
+import {
+  InferenceControlPanel,
+  InferenceConfig,
+  AiProviderType,
+} from "@/components/admin/InferenceControlPanel";
 import { extractMenuAction } from "@/app/actions/ai";
 import { saveMenuAction } from "@/app/actions/menu";
 import { ensureAnonymousSessionAction } from "@/app/actions/auth";
 import { ExtractedMenu } from "@/lib/types";
 import { Button } from "@/components/ui/Button";
-import { Sparkles, Utensils, CheckCircle2, ArrowRight, ShieldCheck } from "lucide-react";
+import {
+  Sparkles,
+  Utensils,
+  CheckCircle2,
+  ArrowRight,
+  ShieldCheck,
+  AlertCircle,
+} from "lucide-react";
 
 export default function HomePage() {
   const [selectedImages, setSelectedImages] = useState<CompressedImage[]>([]);
@@ -22,8 +34,18 @@ export default function HomePage() {
   const [savedRestaurantName, setSavedRestaurantName] = useState<string>("");
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [canFallbackToMock, setCanFallbackToMock] = useState(false);
   const [aiProvider, setAiProvider] = useState<"local" | "litert" | "gemini" | "mock">("local");
   const [aiModelName, setAiModelName] = useState<string>("");
+
+  const [inferenceConfig, setInferenceConfig] = useState<InferenceConfig>({
+    provider: "auto",
+    geminiApiKey: "",
+    ollamaBaseUrl: "http://127.0.0.1:11434",
+    ollamaModel: "qwen3-vl:8B",
+    litertVisionUrl: "http://127.0.0.1:11436",
+    litertReasoningUrl: "http://127.0.0.1:11435",
+  });
 
   useEffect(() => {
     // Garantiza sesión anónima transparente en segundo plano
@@ -32,10 +54,28 @@ export default function HomePage() {
     });
   }, []);
 
-  const handleProcessAi = async () => {
+  const getButtonProviderLabel = (provider: AiProviderType) => {
+    switch (provider) {
+      case "gemini":
+        return "Gemini Flash";
+      case "local":
+        return "Ollama Local";
+      case "litert_hybrid":
+        return "LiteRT Híbrido";
+      case "mock":
+        return "Simulación Demo";
+      default:
+        return "IA Inteligente";
+    }
+  };
+
+  const handleProcessAi = async (overrideProvider?: AiProviderType) => {
     if (selectedImages.length === 0) return;
     setErrorMsg(null);
+    setCanFallbackToMock(false);
     setIsProcessingAi(true);
+
+    const activeProvider = overrideProvider || inferenceConfig.provider;
 
     try {
       const formData = new FormData();
@@ -43,9 +83,21 @@ export default function HomePage() {
         formData.append("images", img.dataUrl);
       });
 
+      formData.append("provider", activeProvider);
+      if (inferenceConfig.geminiApiKey) {
+        formData.append("apiKey", inferenceConfig.geminiApiKey);
+      }
+      formData.append("ollamaBaseUrl", inferenceConfig.ollamaBaseUrl);
+      formData.append("ollamaModel", inferenceConfig.ollamaModel);
+      formData.append("litertVisionUrl", inferenceConfig.litertVisionUrl);
+      formData.append("litertReasoningUrl", inferenceConfig.litertReasoningUrl);
+
       const res = await extractMenuAction(formData);
 
       if (!res.success || !res.data) {
+        if (res.canFallbackToMock) {
+          setCanFallbackToMock(true);
+        }
         throw new Error(res.error || "Error al procesar la carta con IA.");
       }
 
@@ -167,6 +219,13 @@ export default function HomePage() {
               </div>
             </div>
 
+            {/* Panel de Control del Motor de Inferencia IA */}
+            <InferenceControlPanel
+              config={inferenceConfig}
+              onChangeConfig={setInferenceConfig}
+              isProcessing={isProcessingAi}
+            />
+
             {/* Componente de Subida */}
             <div className="space-y-4">
               <ImageUploader
@@ -175,19 +234,41 @@ export default function HomePage() {
               />
 
               {errorMsg && (
-                <div className="p-3 bg-red-50 dark:bg-red-950/40 text-red-700 dark:text-red-300 rounded-xl text-xs border border-red-200">
-                  {errorMsg}
+                <div className="p-4 bg-red-50 dark:bg-red-950/40 text-red-800 dark:text-red-200 rounded-2xl text-xs border border-red-200 dark:border-red-900/60 space-y-2.5 animate-in fade-in duration-200">
+                  <div className="flex items-start gap-2">
+                    <AlertCircle className="w-4 h-4 text-red-600 dark:text-red-400 flex-shrink-0 mt-0.5" />
+                    <p className="flex-1 font-medium leading-relaxed">{errorMsg}</p>
+                  </div>
+                  {canFallbackToMock && (
+                    <div className="pt-2 border-t border-red-200/60 dark:border-red-900/40 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                      <span className="text-[11px] text-zinc-600 dark:text-zinc-400">
+                        ¿Quieres probar el resto del flujo sin configurar claves?
+                      </span>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          setInferenceConfig({ ...inferenceConfig, provider: "mock" });
+                          handleProcessAi("mock");
+                        }}
+                        className="text-xs bg-white dark:bg-zinc-900 text-emerald-700 dark:text-emerald-400 border-emerald-300 dark:border-emerald-800 hover:bg-emerald-50 h-7"
+                      >
+                        <span>👉 Continuar con Simulación Demo</span>
+                      </Button>
+                    </div>
+                  )}
                 </div>
               )}
 
               {selectedImages.length > 0 && !isProcessingAi && (
                 <Button
-                  onClick={handleProcessAi}
+                  onClick={() => handleProcessAi()}
                   size="lg"
                   className="w-full text-base py-4"
                 >
                   <Sparkles className="w-5 h-5 mr-2" />
-                  Digitalizar Carta con Gemini Flash ({selectedImages.length} foto
+                  Digitalizar Carta con {getButtonProviderLabel(inferenceConfig.provider)} ({selectedImages.length} foto
                   {selectedImages.length > 1 ? "s" : ""})
                 </Button>
               )}

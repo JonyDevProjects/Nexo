@@ -8,47 +8,72 @@ export interface ImageInput {
 }
 
 export async function extractMenuFromImages(
-  images: ImageInput[]
+  images: ImageInput[],
+  apiKeyOverride?: string
 ): Promise<ExtractedMenu> {
-  const apiKey = process.env.GEMINI_API_KEY;
+  const apiKey = (apiKeyOverride || process.env.GEMINI_API_KEY || "").trim();
 
   if (!apiKey || apiKey === "your-gemini-api-key") {
     console.warn("GEMINI_API_KEY no configurada. Usando respuesta simulada para pruebas de desarrollo.");
     return getMockExtractedMenu();
   }
 
-  const genAI = new GoogleGenerativeAI(apiKey);
-  // Using gemini-1.5-flash or gemini-2.0-flash
-  const model = genAI.getGenerativeModel({
-    model: "gemini-1.5-flash",
-    generationConfig: {
-      responseMimeType: "application/json",
-      // @ts-expect-error responseSchema is supported in Gemini 1.5+
-      responseSchema: GEMINI_RESPONSE_SCHEMA,
-      temperature: 0.2,
-    },
-    systemInstruction: GEMINI_MENU_EXTRACTION_SYSTEM_PROMPT,
-  });
-
-  const imageParts = images.map((img) => ({
-    inlineData: {
-      data: img.base64Data.replace(/^data:image\/[a-z]+;base64,/, ""),
-      mimeType: img.mimeType,
-    },
-  }));
-
-  const prompt = "Analiza y extrae minuciosamente todos los platos, categorías, precios en euros y alérgenos de la UE de esta carta:";
-
-  const result = await model.generateContent([prompt, ...imageParts]);
-  const responseText = result.response.text();
-
   try {
-    const parsedJson = JSON.parse(responseText);
-    const validated = ExtractedMenuSchema.parse(parsedJson);
-    return validated;
-  } catch (error) {
-    console.error("Error al parsear respuesta JSON de Gemini:", error, responseText);
-    throw new Error("No se pudo extraer la carta en un formato válido. Por favor, reintenta con una foto más nítida.");
+    const genAI = new GoogleGenerativeAI(apiKey);
+    // Using gemini-1.5-flash or gemini-2.0-flash
+    const model = genAI.getGenerativeModel({
+      model: "gemini-1.5-flash",
+      generationConfig: {
+        responseMimeType: "application/json",
+        // @ts-expect-error responseSchema is supported in Gemini 1.5+
+        responseSchema: GEMINI_RESPONSE_SCHEMA,
+        temperature: 0.2,
+      },
+      systemInstruction: GEMINI_MENU_EXTRACTION_SYSTEM_PROMPT,
+    });
+
+    const imageParts = images.map((img) => ({
+      inlineData: {
+        data: img.base64Data.replace(/^data:image\/[a-z]+;base64,/, ""),
+        mimeType: img.mimeType,
+      },
+    }));
+
+    const prompt = "Analiza y extrae minuciosamente todos los platos, categorías, precios en euros y alérgenos de la UE de esta carta:";
+
+    const result = await model.generateContent([prompt, ...imageParts]);
+    const responseText = result.response.text();
+
+    try {
+      const parsedJson = JSON.parse(responseText);
+      const validated = ExtractedMenuSchema.parse(parsedJson);
+      return validated;
+    } catch (error) {
+      console.error("Error al parsear respuesta JSON de Gemini:", error, responseText);
+      throw new Error("No se pudo extraer la carta en un formato válido. Por favor, reintenta con una foto más nítida.");
+    }
+  } catch (error: any) {
+    console.error("Error en llamada a Gemini:", error);
+    const msg = error.message || String(error);
+    if (
+      msg.includes("401") ||
+      msg.includes("API key not valid") ||
+      msg.includes("ACCESS_TOKEN_TYPE_UNSUPPORTED")
+    ) {
+      throw new Error(
+        "Clave de API de Gemini no válida o sin permisos (Error 401). Verifica tu GEMINI_API_KEY en Google AI Studio (debe empezar por 'AIzaSy...') o selecciona otro motor en 'Configurar' (Local Ollama o Simulación Demo)."
+      );
+    }
+    if (
+      msg.includes("429") ||
+      msg.includes("quota") ||
+      msg.includes("ResourceExhausted")
+    ) {
+      throw new Error(
+        "Se ha superado la cuota de la API de Gemini (Error 429). Puedes usar 'Simulación Demo' o un motor local para continuar probando."
+      );
+    }
+    throw error;
   }
 }
 
