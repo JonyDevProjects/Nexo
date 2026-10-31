@@ -9,7 +9,15 @@ REGLAS ESTRICTAS DE EXTRACCIÓN:
 3. Precios: Extrae el valor numérico exacto en euros (número flotante, ej. 8.50). Si no tiene precio o es "según mercado", usa 0.
 4. Alérgenos obligatorios de la UE: Asigna ÚNICAMENTE los códigos del siguiente listado si los ingredientes del plato típicamente los contienen o se mencionan:
    ['gluten', 'crustaceans', 'eggs', 'fish', 'peanuts', 'soybeans', 'dairy', 'nuts', 'celery', 'mustard', 'sesame', 'sulphites', 'lupin', 'molluscs'].
-   Ante la duda razonable en recetas tradicionales españolas (ej. croquetas contienen 'gluten' y 'dairy'; tortilla contiene 'eggs'; salmorejo contiene 'gluten' y a menudo 'eggs'), inclúyelos siempre.
+   APLICAR HEURÍSTICA CULINARIA ESPAÑOLA RIGUROSA:
+   - Croquetas caseras: contienen bechamel ('dairy', 'gluten') y rebozado de huevo ('eggs').
+   - Tortilla de patatas y revueltos: contienen 'eggs'.
+   - Ensaladilla rusa / mayonesa / alioli casero: contienen 'eggs', atún/ventresca ('fish') y picos/reñetes de pan ('gluten').
+   - Patatas bravas y frituras con rebozado: salsa brava con harina ('gluten') y alioli ('eggs').
+   - Calamares a la andaluza/romana, rabas, chipirones, mejillones: 'molluscs', y rebozados con harina ('gluten').
+   - Gambas al ajillo, langostinos, mariscos: 'crustaceans', y salsas con reducción de vino ('sulphites').
+   - Guisos tradicionales (rabo de toro, carrilleras, estofados): sofrito con vino ('sulphites') y caldo con apio ('celery').
+   - Postres caseros (tarta de queso, natillas, flan con nata, torrijas): 'dairy', 'eggs' y 'gluten' (si lleva base/galleta/pan).
 5. Traducción al inglés: Traduce con precisión natural y atractiva para turistas el nombre y la descripción de cada plato y categoría.
 6. Devuelve EXCLUSIVAMENTE el JSON estructurado según el schema especificado, sin texto introductorio ni bloques markdown envolventes.
 `;

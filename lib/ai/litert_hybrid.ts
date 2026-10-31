@@ -99,6 +99,7 @@ Tu tarea es:
 1. Limpiar y estructurar las categorías y platos.
 2. Analizar los ingredientes de cada plato y deducir con exactitud los alérgenos aplicables de la UE según recetas tradicionales españolas:
    ['gluten', 'crustaceans', 'eggs', 'fish', 'peanuts', 'soybeans', 'dairy', 'nuts', 'celery', 'mustard', 'sesame', 'sulphites', 'lupin', 'molluscs'].
+   Heurística culinaria: croquetas ('dairy', 'gluten', 'eggs'), tortilla ('eggs'), ensaladilla ('eggs', 'fish', 'gluten'), bravas ('gluten', 'eggs'), calamares/chipirones ('molluscs', 'gluten'), gambas ('crustaceans'), guisos al vino ('sulphites', 'celery'), postres caseros ('dairy', 'eggs', 'gluten').
 3. Traducir el nombre y descripción de cada plato al inglés con vocabulario gastronómico natural.
 4. Responder EXCLUSIVAMENTE con un JSON válido con la siguiente estructura:
 {
