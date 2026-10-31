@@ -91,12 +91,19 @@ Responde ÚNICAMENTE con un objeto JSON válido con la siguiente estructura:
       throw new Error("El motor LiteRT-LM devolvió una respuesta vacía.");
     }
 
-    // Limpiar posibles bloques markdown ```json ... ```
-    const cleanedJson = rawContent
+    // Limpiar posibles bloques markdown ```json ... ``` y etiquetas de pensamiento
+    let cleanedJson = rawContent
+      .replace(/<thought>[\s\S]*?<\/thought>/gi, "")
       .replace(/^```json\s*/i, "")
       .replace(/^```\s*/i, "")
       .replace(/\s*```$/i, "")
       .trim();
+
+    const firstBrace = cleanedJson.indexOf("{");
+    const lastBrace = cleanedJson.lastIndexOf("}");
+    if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
+      cleanedJson = cleanedJson.substring(firstBrace, lastBrace + 1);
+    }
 
     const parsed = JSON.parse(cleanedJson);
     const validated = ExtractedMenuSchema.parse(parsed);

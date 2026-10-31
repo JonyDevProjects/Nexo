@@ -81,7 +81,20 @@ Responde ÚNICAMENTE con el objeto JSON válido.`;
     }
 
     // Parse and validate with Zod
-    const parsed = JSON.parse(content);
+    let cleanedJson = content
+      .replace(/<thought>[\s\S]*?<\/thought>/gi, "")
+      .replace(/^```json\s*/i, "")
+      .replace(/^```\s*/i, "")
+      .replace(/\s*```$/i, "")
+      .trim();
+
+    const firstBrace = cleanedJson.indexOf("{");
+    const lastBrace = cleanedJson.lastIndexOf("}");
+    if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
+      cleanedJson = cleanedJson.substring(firstBrace, lastBrace + 1);
+    }
+
+    const parsed = JSON.parse(cleanedJson);
     const validated = ExtractedMenuSchema.parse(parsed);
 
     return validated;

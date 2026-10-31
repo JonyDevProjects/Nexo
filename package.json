@@ -8,6 +8,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
+    "litert:serve": "node --experimental-strip-types scripts/litert-service.ts",
     "test:rls": "node --experimental-strip-types scripts/test-supabase-rls.ts",
     "test:isr": "node --experimental-strip-types scripts/test-isr-cache.ts",
     "benchmark:ai": "node --experimental-strip-types scripts/benchmark-ai.ts",
