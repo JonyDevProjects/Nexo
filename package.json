@@ -7,7 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "test:rls": "node --experimental-strip-types scripts/test-supabase-rls.ts"
+    "test:rls": "node --experimental-strip-types scripts/test-supabase-rls.ts",
+    "test:isr": "node --experimental-strip-types scripts/test-isr-cache.ts"
   },
   "dependencies": {
     "@google/generative-ai": "^0.21.0",

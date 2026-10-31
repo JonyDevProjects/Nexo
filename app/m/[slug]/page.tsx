@@ -3,7 +3,12 @@ import { getPublicMenuBySlug } from "@/lib/data/menu";
 import { MenuPublicView } from "@/components/menu/MenuPublicView";
 import type { Metadata } from "next";
 
-export const revalidate = 60; // ISR cache revalidation fallback
+export const revalidate = 60; // ISR cache revalidation fallback (60 seconds)
+export const dynamicParams = true; // Permite generar cartas de nuevos restaurantes bajo demanda (ISR)
+
+export async function generateStaticParams() {
+  return [{ slug: "bar-pepe" }];
+}
 
 interface PageProps {
   params: Promise<{

@@ -1,4 +1,5 @@
-import { createServerSupabaseClient } from "../supabase/server";
+import { unstable_cache } from "next/cache";
+import { createPublicSupabaseClient } from "../supabase/public";
 import { FullMenuData } from "../types";
 
 export const DEMO_RESTAURANT_MENU: FullMenuData = {
@@ -126,7 +127,7 @@ export const DEMO_RESTAURANT_MENU: FullMenuData = {
   ],
 };
 
-export async function getPublicMenuBySlug(slug: string): Promise<FullMenuData | null> {
+async function fetchPublicMenuFromSource(slug: string): Promise<FullMenuData | null> {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const isSupabaseConfigured = supabaseUrl && !supabaseUrl.includes("dummy");
 
@@ -146,7 +147,7 @@ export async function getPublicMenuBySlug(slug: string): Promise<FullMenuData | 
   }
 
   try {
-    const supabase = await createServerSupabaseClient();
+    const supabase = createPublicSupabaseClient();
 
     const { data: restaurant, error: resError } = await supabase
       .from("restaurants")
@@ -178,4 +179,21 @@ export async function getPublicMenuBySlug(slug: string): Promise<FullMenuData | 
     console.error("Error en getPublicMenuBySlug:", error);
     return null;
   }
+}
+
+/**
+ * Consulta la carta pública con cache atómico en Data Cache e ISR Edge.
+ * Invalida mediante revalidateTag(`menu-${slug}`).
+ */
+export async function getPublicMenuBySlug(slug: string): Promise<FullMenuData | null> {
+  const getCachedMenu = unstable_cache(
+    async (targetSlug: string) => fetchPublicMenuFromSource(targetSlug),
+    ["public-menu", slug],
+    {
+      revalidate: 60,
+      tags: [`menu-${slug}`],
+    }
+  );
+
+  return getCachedMenu(slug);
 }

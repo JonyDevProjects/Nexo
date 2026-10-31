@@ -1,6 +1,6 @@
 "use server";
 
-import { revalidateTag } from "next/cache";
+import { revalidateTag, revalidatePath } from "next/cache";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { ExtractedMenu } from "@/lib/types";
 
@@ -122,9 +122,10 @@ export async function saveMenuAction(
       }
     }
 
-    // Invalidate edge cache tag for this restaurant
+    // Invalidate edge cache tag and page route for this restaurant
     try {
       revalidateTag(`menu-${cleanSlug}`);
+      revalidatePath(`/m/${cleanSlug}`);
     } catch {
       // ignore in test/dev
     }
