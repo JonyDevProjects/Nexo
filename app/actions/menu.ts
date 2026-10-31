@@ -45,7 +45,14 @@ export async function saveMenuAction(
         data: { user },
       } = await supabase.auth.getUser();
 
-      const userId = user?.id || "00000000-0000-0000-0000-000000000000";
+      if (!user) {
+        return {
+          success: false,
+          error: "Debes iniciar sesión para guardar y publicar tu carta.",
+        };
+      }
+
+      const userId = user.id;
 
       // 1. Upsert Restaurant
       const { data: restaurant, error: resError } = await supabase
