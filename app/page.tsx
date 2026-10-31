@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { ImageUploader, CompressedImage } from "@/components/admin/ImageUploader";
 import { AiProgressStepper } from "@/components/admin/AiProgressStepper";
@@ -8,6 +8,7 @@ import { MenuEditor } from "@/components/admin/MenuEditor";
 import { QrDownloadModal } from "@/components/qr/QrDownloadModal";
 import { extractMenuAction } from "@/app/actions/ai";
 import { saveMenuAction } from "@/app/actions/menu";
+import { ensureAnonymousSessionAction } from "@/app/actions/auth";
 import { ExtractedMenu } from "@/lib/types";
 import { Button } from "@/components/ui/Button";
 import { Sparkles, Utensils, CheckCircle2, ArrowRight, ShieldCheck } from "lucide-react";
@@ -23,6 +24,13 @@ export default function HomePage() {
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [aiProvider, setAiProvider] = useState<"local" | "litert" | "gemini" | "mock">("local");
   const [aiModelName, setAiModelName] = useState<string>("");
+
+  useEffect(() => {
+    // Garantiza sesión anónima transparente en segundo plano
+    ensureAnonymousSessionAction().catch((err) => {
+      console.warn("Sesión anónima:", err);
+    });
+  }, []);
 
   const handleProcessAi = async () => {
     if (selectedImages.length === 0) return;

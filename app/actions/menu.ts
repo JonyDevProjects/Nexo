@@ -41,15 +41,23 @@ export async function saveMenuAction(
 
     if (isSupabaseConfigured) {
       const supabase = await createServerSupabaseClient();
-      const {
+      let {
         data: { user },
       } = await supabase.auth.getUser();
 
       if (!user) {
-        return {
-          success: false,
-          error: "Debes iniciar sesión para guardar y publicar tu carta.",
-        };
+        // Garantizar sesión anónima transparente (Onboarding < 3 min sin fricción)
+        const { data: anonData, error: anonError } =
+          await supabase.auth.signInAnonymously();
+
+        if (anonError || !anonData.user) {
+          console.error("Error al iniciar sesión anónima en saveMenuAction:", anonError);
+          return {
+            success: false,
+            error: "No se pudo iniciar una sesión segura para publicar tu carta.",
+          };
+        }
+        user = anonData.user;
       }
 
       const userId = user.id;

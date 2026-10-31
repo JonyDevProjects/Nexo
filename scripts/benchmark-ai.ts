@@ -1055,8 +1055,12 @@ flowchart LR
    * Fijar \`temperature: 0.15 - 0.20\` en todos los motores. Temperaturas más altas provocan variabilidad en los precios decimales; temperaturas menores a 0.1 causan repeticiones en listas largas de platos.
 `;
 
-  fs.writeFileSync(outputPath, md, "utf-8");
-  console.log(`\n📄 Benchmark report successfully generated at: ${outputPath}`);
+  try {
+    fs.writeFileSync(outputPath, md, "utf-8");
+    console.log(`\n📄 Benchmark report successfully generated at: ${outputPath}`);
+  } catch (err: any) {
+    console.warn(`\n⚠️ Notice: Could not write benchmark report to ${outputPath} (${err.message}). Summary retained in memory.`);
+  }
 }
 
 // --- Main CLI Execution ---

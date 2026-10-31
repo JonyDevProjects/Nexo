@@ -1,9 +1,10 @@
 "use client";
 
-import React, { useRef } from "react";
+import React, { useRef, useState } from "react";
 import { QRCodeSVG } from "qrcode.react";
 import { Button } from "@/components/ui/Button";
-import { Download, Printer, X, ExternalLink, Check, FileCode } from "lucide-react";
+import { Download, Printer, X, ExternalLink, Check, FileCode, Mail, ShieldCheck, Loader2 } from "lucide-react";
+import { linkEmailAction } from "@/app/actions/auth";
 
 interface QrDownloadModalProps {
   isOpen: boolean;
@@ -19,6 +20,31 @@ export const QrDownloadModal: React.FC<QrDownloadModalProps> = ({
   slug,
 }) => {
   const qrRef = useRef<SVGSVGElement>(null);
+  const [email, setEmail] = useState("");
+  const [isLinking, setIsLinking] = useState(false);
+  const [linkSuccess, setLinkSuccess] = useState(false);
+  const [linkError, setLinkError] = useState<string | null>(null);
+
+  const handleLinkEmail = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!email || !email.includes("@")) {
+      setLinkError("Por favor introduce un correo válido.");
+      return;
+    }
+    setIsLinking(true);
+    setLinkError(null);
+    try {
+      const res = await linkEmailAction(email);
+      if (!res.success) {
+        throw new Error(res.error || "No se pudo vincular el correo.");
+      }
+      setLinkSuccess(true);
+    } catch (err: any) {
+      setLinkError(err.message || "Error al vincular el correo.");
+    } finally {
+      setIsLinking(false);
+    }
+  };
 
   if (!isOpen) return null;
 
@@ -200,6 +226,58 @@ export const QrDownloadModal: React.FC<QrDownloadModalProps> = ({
             <Printer className="w-4 h-4 mr-1.5" />
             Imprimir Plantilla Peana A5
           </Button>
+        </div>
+
+        {/* Vincular Email para guardar acceso (opcional, sin fricción) */}
+        <div className="p-3.5 bg-amber-500/10 dark:bg-amber-950/30 rounded-2xl border border-amber-500/20 space-y-2.5 print:hidden">
+          <div className="flex items-start gap-2">
+            <ShieldCheck className="w-4 h-4 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
+            <div className="space-y-0.5 text-left">
+              <span className="font-bold text-xs text-zinc-900 dark:text-zinc-100 block">
+                ¿Quieres actualizar tus platos o precios más adelante?
+              </span>
+              <p className="text-[11px] text-zinc-600 dark:text-zinc-400">
+                Guarda tu carta introduciendo tu email. Te enviaremos un enlace de acceso seguro sin contraseñas.
+              </p>
+            </div>
+          </div>
+
+          {linkSuccess ? (
+            <div className="flex items-center gap-1.5 p-2 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-800 dark:text-emerald-300 rounded-xl text-xs font-semibold">
+              <Check className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+              <span>¡Enlace enviado a {email}! Revisa tu bandeja de entrada.</span>
+            </div>
+          ) : (
+            <form onSubmit={handleLinkEmail} className="flex gap-2">
+              <div className="relative flex-1">
+                <Mail className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-zinc-400" />
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="tu@restaurante.com"
+                  disabled={isLinking}
+                  className="w-full pl-8 pr-3 py-1.5 text-xs rounded-xl border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 focus:outline-none focus:ring-1 focus:ring-amber-500"
+                />
+              </div>
+              <Button
+                type="submit"
+                variant="outline"
+                disabled={isLinking || !email}
+                className="text-xs px-3 py-1.5 h-auto flex-shrink-0"
+              >
+                {isLinking ? (
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                ) : (
+                  <span>Guardar</span>
+                )}
+              </Button>
+            </form>
+          )}
+
+          {linkError && (
+            <p className="text-[11px] text-red-600 dark:text-red-400">{linkError}</p>
+          )}
         </div>
       </div>
     </div>
