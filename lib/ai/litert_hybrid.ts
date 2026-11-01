@@ -34,10 +34,15 @@ export async function extractMenuWithLiteRTHybrid(
     > = [
       {
         type: "text",
-        text: `Eres un asistente de digitalización visual. Lee con máxima precisión las imágenes de esta carta de restaurante y transcribe todo su contenido en texto ordenado:
-- Agrupa por categorías visibles (Entrantes, Raciones, Platos, Bebidas, Postres).
-- Para cada plato indica: Nombre exacto, descripción o ingredientes si aparecen, y precio en euros (€).
-Sé fiel a lo que ves en la imagen.`,
+        text: `Eres un asistente experto en digitalización visual y OCR gastronómico.
+Analiza exhaustivamente cada área de las imágenes de esta carta de restaurante y transcribe ABSOLUTAMENTE TODOS los platos, bebidas y precios sin omitir ninguno:
+- Escanea meticulosamente de arriba a abajo y columna por columna.
+- Agrupa por las categorías visibles (Entrantes, Tapas, Raciones, Platos Principales, Postres, Bebidas, etc.).
+- Para CADA plato visible transcribe:
+  1. Nombre exacto del plato o ración.
+  2. Descripción, ingredientes o acompañamientos si están escritos.
+  3. Precio en euros (€).
+- No resumas, no utilices "...", ni saltes ningún elemento visible en los márgenes o columnas secundarias.`,
       },
     ];
 
@@ -58,7 +63,7 @@ Sé fiel a lo que ves en la imagen.`,
       body: JSON.stringify({
         model: visionModel,
         messages: [{ role: "user", content: contentParts }],
-        max_tokens: 2048,
+        max_tokens: 3500,
         stream: false,
       }),
     });
@@ -127,7 +132,7 @@ Tu tarea es:
       body: JSON.stringify({
         model: reasoningModel,
         messages: [{ role: "user", content: reasoningPrompt }],
-        max_tokens: 3000,
+        max_tokens: 4096,
         stream: false,
       }),
     });

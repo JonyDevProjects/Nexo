@@ -97,7 +97,8 @@ const visionServer = http.createServer(async (req, res) => {
             ],
             options: {
               temperature: 0.1,
-              num_predict: 800,
+              num_predict: payload.max_tokens ? Math.max(payload.max_tokens, 2500) : 2500,
+              num_ctx: 8192,
             },
             stream: false,
           }),
@@ -200,7 +201,8 @@ const reasoningServer = http.createServer(async (req, res) => {
             ],
             options: {
               temperature: 0.15,
-              num_predict: 1200,
+              num_predict: payload.max_tokens ? Math.max(payload.max_tokens, 4096) : 4096,
+              num_ctx: 8192,
             },
             stream: false,
           }),
