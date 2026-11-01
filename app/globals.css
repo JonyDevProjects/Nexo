@@ -31,13 +31,13 @@ body {
   scrollbar-width: none;
 }
 
-/* Media query para impresión física en mesa (Peana / Caballete A5) */
-@media print {
-  @page {
-    size: A5 portrait;
-    margin: 8mm;
-  }
+/* Estilos de impresión física en mesa (Peana / Caballete A5) */
+@page {
+  size: A5 portrait;
+  margin: 8mm;
+}
 
+@media print {
   html, body {
     background: #ffffff !important;
     color: #09090b !important;
