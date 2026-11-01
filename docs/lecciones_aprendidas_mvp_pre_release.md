@@ -1,9 +1,9 @@
 # Informe de Estado del MVP y Lecciones Aprendidas (Pre-Release 1.0)
 
-> **Fecha:** 1 de noviembre de 2026  
+> **Fecha:** 1 de noviembre de 2026 (Documento Vivo en constante actualización)  
 > **Proyecto:** Nexo (Micro-SaaS para Hostelería Española)  
 > **Rama:** `develop`  
-> **Objetivo:** Documentar los aprendizajes técnicos, arquitectura de inferencia, soluciones a incidencias y estado del MVP antes de la primera release a producción.
+> **Objetivo:** Documentar de forma iterativa los aprendizajes técnicos, arquitectura de inferencia, soluciones a incidencias y el estado de validación del MVP antes de la primera release a producción.
 
 ---
 
@@ -145,3 +145,37 @@ Antes de fusionar `develop` en `main` y desplegar en Vercel + Supabase Producci�
   - Comprobar que las rutas `/m/[slug]` responden con cabeceras `s-maxage=86400, stale-while-revalidate=604800`.
 - [ ] **Aprobación Final:**
   - Fusión de `develop` a `main` y etiquetado (`git tag v1.0.0`).
+
+---
+
+## 5. Flujos Críticos en Foco de Validación (Próximas Sesiones)
+
+Este documento se mantendrá actualizado a medida que ejecutemos y analicemos los siguientes flujos sobre la marcha:
+
+### 1. Persistencia Integral de la Carta
+- **Objetivo:** Verificar la inserción y consistencia relacional en Supabase (`restaurants`, `categories`, `dishes`).
+- **Puntos a comprobar:**
+  - Generación de `slug` único normalizado (ej. `bar-la-esquina`).
+  - Correcta asignación de `order_index` en categorías y platos.
+  - Almacenamiento íntegro de arrays de alérgenos (`allergens text[]`) y campos bilingües (`_es` / `_en`).
+  - Comportamiento ante desconexión o fallo transaccional durante el guardado.
+
+### 2. Flujo de Autenticación y Claiming de Cuenta (Opción A)
+- **Objetivo:** Asegurar que la transición de usuario anónimo a propietario registrado sea fluida y segura.
+- **Puntos a comprobar:**
+  - Creación automática de sesión anónima en `cookies` de Next.js mediante Server Actions.
+  - Vinculación de email en el modal de QR (`linkEmailAction`) sin perder la autoría del restaurante.
+  - Verificación de políticas RLS: comprobar que un usuario no autenticado o con otro ID no pueda editar ni eliminar la carta.
+
+### 3. Ciclo de Edición y Revalidación de Caché (Edge ISR)
+- **Objetivo:** Validar que al modificar un plato o precio en el dashboard, la vista pública del cliente (`/m/[slug]`) se actualice inmediatamente.
+- **Puntos a comprobar:**
+  - Ejecución de `revalidatePath('/m/[slug]')`.
+  - Comportamiento de cabeceras `Cache-Control` (`s-maxage=86400, stale-while-revalidate=604800`) en la Edge Network.
+
+### 4. Experiencia de Usuario y Descarga de Peana A5
+- **Objetivo:** Validar la usabilidad de la peana física para el camarero o hostelero.
+- **Puntos a comprobar:**
+  - Descarga del SVG vectorial del código QR con ratio de contraste >= 21:1.
+  - Previsualización e impresión de la plantilla CSS `@media print` en tamaño A5 real con guías de corte y plegado.
+
