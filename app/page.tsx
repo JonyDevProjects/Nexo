@@ -41,6 +41,7 @@ export default function HomePage() {
   const [inferenceConfig, setInferenceConfig] = useState<InferenceConfig>({
     provider: "auto",
     geminiApiKey: "",
+    geminiModel: "auto",
     ollamaBaseUrl: "http://127.0.0.1:11434",
     ollamaModel: "qwen3-vl:8B",
     litertVisionUrl: "http://127.0.0.1:11436",
@@ -86,6 +87,9 @@ export default function HomePage() {
       formData.append("provider", activeProvider);
       if (inferenceConfig.geminiApiKey) {
         formData.append("apiKey", inferenceConfig.geminiApiKey);
+      }
+      if (inferenceConfig.geminiModel) {
+        formData.append("geminiModel", inferenceConfig.geminiModel);
       }
       formData.append("ollamaBaseUrl", inferenceConfig.ollamaBaseUrl);
       formData.append("ollamaModel", inferenceConfig.ollamaModel);

@@ -29,6 +29,7 @@ export type AiProviderType =
 export interface InferenceConfig {
   provider: AiProviderType;
   geminiApiKey: string;
+  geminiModel?: string;
   ollamaBaseUrl: string;
   ollamaModel: string;
   litertVisionUrl: string;
@@ -57,12 +58,19 @@ export const InferenceControlPanel: React.FC<InferenceControlPanelProps> = ({
   useEffect(() => {
     // Restaurar clave de Gemini si existe en localStorage
     const savedGeminiKey = localStorage.getItem("nexo_gemini_api_key");
+    const savedGeminiModel = localStorage.getItem("nexo_gemini_model");
     const savedProvider = localStorage.getItem("nexo_ai_provider") as AiProviderType;
     if (savedGeminiKey && !config.geminiApiKey) {
       onChangeConfig({
         ...config,
         geminiApiKey: savedGeminiKey,
+        geminiModel: savedGeminiModel || config.geminiModel || "auto",
         provider: savedProvider || config.provider,
+      });
+    } else if (savedGeminiModel && !config.geminiModel) {
+      onChangeConfig({
+        ...config,
+        geminiModel: savedGeminiModel,
       });
     }
 
@@ -92,6 +100,13 @@ export const InferenceControlPanel: React.FC<InferenceControlPanelProps> = ({
     const updated = { ...config, geminiApiKey: clean };
     onChangeConfig(updated);
     localStorage.setItem("nexo_gemini_api_key", clean);
+  };
+
+  const handleModelChange = (val: string) => {
+    const clean = val.trim();
+    const updated = { ...config, geminiModel: clean };
+    onChangeConfig(updated);
+    localStorage.setItem("nexo_gemini_model", clean);
   };
 
   const getProviderBadge = () => {
@@ -350,13 +365,37 @@ export const InferenceControlPanel: React.FC<InferenceControlPanelProps> = ({
                     {showApiKey ? "Ocultar" : "Ver"}
                   </Button>
                 </div>
+                <div className="space-y-1 pt-1 border-t border-sky-100/60 dark:border-sky-900/40">
+                  <div className="flex items-center justify-between">
+                    <label className="text-[10px] font-semibold text-sky-800 dark:text-sky-300">
+                      Variante del Modelo Gemini:
+                    </label>
+                    <span className="text-[9px] text-sky-600 dark:text-sky-400">
+                      Fallback automático activo
+                    </span>
+                  </div>
+                  <select
+                    value={config.geminiModel || "auto"}
+                    onChange={(e) => handleModelChange(e.target.value)}
+                    className="w-full px-2.5 py-1.5 text-xs rounded-lg border border-sky-200 dark:border-sky-800 bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 font-mono"
+                  >
+                    <option value="auto">Auto (Detección automática / Recomendado)</option>
+                    <option value="gemini-1.5-flash-latest">gemini-1.5-flash-latest (Última versión)</option>
+                    <option value="gemini-1.5-flash-002">gemini-1.5-flash-002 (Estable)</option>
+                    <option value="gemini-2.0-flash">gemini-2.0-flash (Próxima generación)</option>
+                    <option value="gemini-2.5-flash">gemini-2.5-flash</option>
+                    <option value="gemini-1.5-flash">gemini-1.5-flash (Legacy)</option>
+                    <option value="gemini-1.5-flash-8b">gemini-1.5-flash-8b (Ultra-rápido)</option>
+                    <option value="gemini-1.5-pro">gemini-1.5-pro (Máxima precisión)</option>
+                  </select>
+                </div>
+
                 <p className="text-[10px] text-zinc-500 dark:text-zinc-400">
-                  💡 Las claves de Google AI Studio empiezan siempre por{" "}
+                  💡 Si una variante genera error 404 en tu cuenta, el sistema prueba automáticamente las demás alternativas. Las claves de Google AI Studio empiezan siempre por{" "}
                   <code className="font-mono text-zinc-700 dark:text-zinc-300">
                     AIzaSy...
                   </code>
-                  . Si tu clave en terminal genera error 401, pega tu clave aquí
-                  o selecciona <strong>Demo Mock</strong>.
+                  .
                 </p>
               </div>
             ) : null}

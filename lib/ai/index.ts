@@ -12,6 +12,7 @@ export interface ImageInput {
 export interface ExtractionOptions {
   provider?: "auto" | "gemini" | "litert_hybrid" | "litert" | "local" | "mock";
   apiKey?: string;
+  geminiModel?: string;
   ollamaBaseUrl?: string;
   ollamaModel?: string;
   litertVisionUrl?: string;
@@ -81,8 +82,8 @@ export async function extractMenu(
   // 5. Forzar Google Gemini Cloud
   if (provider === "gemini") {
     console.log("[AI Engine] Ejecutando Google Gemini Flash API...");
-    const data = await extractWithGemini(images, options?.apiKey);
-    return { data, provider: "gemini", modelName: "Gemini 1.5 Flash" };
+    const res = await extractWithGemini(images, options?.apiKey, options?.geminiModel);
+    return { data: res.data, provider: "gemini", modelName: `Gemini (${res.modelUsed})` };
   }
 
   // 6. Modo Auto (Prioridad: LiteRT Híbrido -> LiteRT Simple -> Ollama -> Gemini -> Mock)
@@ -141,8 +142,8 @@ export async function extractMenu(
   if (geminiKey && geminiKey !== "your-gemini-api-key") {
     try {
       console.log("[AI Engine Auto] Usando Google Gemini Flash...");
-      const data = await extractWithGemini(images, geminiKey);
-      return { data, provider: "gemini", modelName: "Gemini 1.5 Flash" };
+      const res = await extractWithGemini(images, geminiKey, options?.geminiModel);
+      return { data: res.data, provider: "gemini", modelName: `Gemini (${res.modelUsed})` };
     } catch (err: any) {
       console.warn("[AI Engine Auto] Falló Gemini en modo auto, usando simulación:", err.message);
       return {

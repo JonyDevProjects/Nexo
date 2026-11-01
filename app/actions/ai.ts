@@ -160,6 +160,7 @@ export async function extractMenuAction(
     // Opciones del motor de inferencia enviadas desde el cliente
     const provider = formData.get("provider") as any;
     const apiKey = (formData.get("apiKey") as string | null) || undefined;
+    const geminiModel = (formData.get("geminiModel") as string | null) || undefined;
     const ollamaBaseUrl =
       (formData.get("ollamaBaseUrl") as string | null) || undefined;
     const ollamaModel =
@@ -172,6 +173,7 @@ export async function extractMenuAction(
     const options: ExtractionOptions = {
       provider,
       apiKey,
+      geminiModel,
       ollamaBaseUrl,
       ollamaModel,
       litertVisionUrl,

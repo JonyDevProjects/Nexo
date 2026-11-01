@@ -7,74 +7,273 @@ export interface ImageInput {
   mimeType: string;
 }
 
+export interface GeminiExtractionResult {
+  data: ExtractedMenu;
+  modelUsed: string;
+}
+
+/**
+ * Consulta la lista de modelos permitidos para la clave de API activa mediante ModelService.ListModels.
+ * Permite autodescubrir qué variantes (gemini-1.5-flash-latest, gemini-2.0-flash, gemini-1.5-flash-002, etc.)
+ * están aprovisionadas en la cuenta de Google AI Studio del usuario.
+ */
+async function fetchAvailableModels(apiKey: string): Promise<string[]> {
+  try {
+    const res = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models?key=${encodeURIComponent(apiKey)}`,
+      { signal: AbortSignal.timeout(3000) }
+    );
+    if (!res.ok) {
+      console.warn(`[Gemini ListModels] HTTP ${res.status}: ${res.statusText}`);
+      return [];
+    }
+    const json = await res.json();
+    if (!Array.isArray(json.models)) return [];
+
+    return json.models
+      .filter(
+        (m: any) =>
+          Array.isArray(m.supportedGenerationMethods) &&
+          m.supportedGenerationMethods.includes("generateContent")
+      )
+      .map((m: any) => String(m.name).replace(/^models\//, ""));
+  } catch (err: any) {
+    console.warn("[Gemini ListModels] No se pudo consultar la lista dinámica de modelos:", err?.message || err);
+    return [];
+  }
+}
+
+/**
+ * Resuelve la lista ordenada de configuraciones de modelo a intentar.
+ * Evita bloqueos por 404 iterando sobre los modelos flash soportados.
+ */
+function resolveCandidateModels(
+  availableModels: string[],
+  preferredModel?: string
+): Array<{ model: string; apiVersion?: string }> {
+  const candidates: Array<{ model: string; apiVersion?: string }> = [];
+
+  const addCandidate = (model: string, apiVersion?: string) => {
+    const clean = model.replace(/^models\//, "").trim();
+    if (!clean) return;
+    if (!candidates.some((c) => c.model === clean && c.apiVersion === apiVersion)) {
+      candidates.push({ model: clean, apiVersion });
+    }
+  };
+
+  // 1. Modelo preferido por el usuario o entorno
+  const envModel = process.env.GEMINI_MODEL;
+  if (preferredModel && preferredModel !== "auto") {
+    addCandidate(preferredModel);
+  }
+  if (envModel && envModel !== "auto") {
+    addCandidate(envModel);
+  }
+
+  // 2. Modelos reportados dinámicamente por la API de Google
+  if (availableModels.length > 0) {
+    const priorityList = [
+      "gemini-1.5-flash-latest",
+      "gemini-1.5-flash-002",
+      "gemini-2.0-flash",
+      "gemini-2.5-flash",
+      "gemini-1.5-flash",
+      "gemini-1.5-flash-8b",
+      "gemini-2.0-flash-exp",
+      "gemini-1.5-pro-latest",
+      "gemini-1.5-pro",
+    ];
+
+    for (const prio of priorityList) {
+      if (availableModels.includes(prio)) {
+        addCandidate(prio);
+      }
+    }
+
+    // Cualquier otro modelo flash
+    for (const m of availableModels) {
+      if (m.toLowerCase().includes("flash")) {
+        addCandidate(m);
+      }
+    }
+
+    // Cualquier otro modelo con soporte generateContent
+    for (const m of availableModels) {
+      addCandidate(m);
+    }
+  }
+
+  // 3. Fallback estático estándar (si ListModels no devolvió resultados)
+  const defaultStaticList = [
+    "gemini-1.5-flash-latest",
+    "gemini-1.5-flash-002",
+    "gemini-2.0-flash",
+    "gemini-2.5-flash",
+    "gemini-1.5-flash",
+    "gemini-1.5-flash-8b",
+  ];
+
+  for (const m of defaultStaticList) {
+    addCandidate(m);
+  }
+
+  // Añadir también gemini-1.5-flash con apiVersion: "v1" explícita
+  addCandidate("gemini-1.5-flash", "v1");
+
+  return candidates;
+}
+
 export async function extractMenuFromImages(
   images: ImageInput[],
-  apiKeyOverride?: string
-): Promise<ExtractedMenu> {
+  apiKeyOverride?: string,
+  modelOverride?: string
+): Promise<GeminiExtractionResult> {
   const apiKey = (apiKeyOverride || process.env.GEMINI_API_KEY || "").trim();
 
   if (!apiKey || apiKey === "your-gemini-api-key") {
     console.warn("GEMINI_API_KEY no configurada. Usando respuesta simulada para pruebas de desarrollo.");
-    return getMockExtractedMenu();
+    return {
+      data: getMockExtractedMenu(),
+      modelUsed: "Simulación Demo (Offline)",
+    };
   }
 
-  try {
-    const genAI = new GoogleGenerativeAI(apiKey);
-    // Using gemini-1.5-flash or gemini-2.0-flash
-    const model = genAI.getGenerativeModel({
-      model: "gemini-1.5-flash",
-      generationConfig: {
-        responseMimeType: "application/json",
-        // @ts-expect-error responseSchema is supported in Gemini 1.5+
-        responseSchema: GEMINI_RESPONSE_SCHEMA,
-        temperature: 0.2,
-      },
-      systemInstruction: GEMINI_MENU_EXTRACTION_SYSTEM_PROMPT,
-    });
+  const genAI = new GoogleGenerativeAI(apiKey);
 
-    const imageParts = images.map((img) => ({
-      inlineData: {
-        data: img.base64Data.replace(/^data:image\/[a-z]+;base64,/, ""),
-        mimeType: img.mimeType,
-      },
-    }));
+  const imageParts = images.map((img) => ({
+    inlineData: {
+      data: img.base64Data.replace(/^data:image\/[a-z]+;base64,/, ""),
+      mimeType: img.mimeType,
+    },
+  }));
 
-    const prompt = "Analiza y extrae minuciosamente todos los platos, categorías, precios en euros y alérgenos de la UE de esta carta:";
+  const prompt =
+    "Analiza y extrae minuciosamente todos los platos, categorías, precios en euros y alérgenos de la UE de esta carta:";
 
-    const result = await model.generateContent([prompt, ...imageParts]);
-    const responseText = result.response.text();
+  // 1. Descubrir modelos activos para la clave de API
+  const availableModels = await fetchAvailableModels(apiKey);
+  if (availableModels.length > 0) {
+    console.log(`[Gemini] Modelos activos detectados para esta clave:`, availableModels.slice(0, 5).join(", "));
+  }
 
+  // 2. Resolver candidatos ordenados
+  const candidateConfigs = resolveCandidateModels(availableModels, modelOverride);
+
+  let lastError: any = null;
+  let successfulResult: GeminiExtractionResult | null = null;
+
+  // 3. Cascada de ejecución con autorrecuperación
+  for (const config of candidateConfigs) {
     try {
-      const parsedJson = JSON.parse(responseText);
-      const validated = ExtractedMenuSchema.parse(parsedJson);
-      return validated;
-    } catch (error) {
-      console.error("Error al parsear respuesta JSON de Gemini:", error, responseText);
-      throw new Error("No se pudo extraer la carta en un formato válido. Por favor, reintenta con una foto más nítida.");
-    }
-  } catch (error: any) {
-    console.error("Error en llamada a Gemini:", error);
-    const msg = error.message || String(error);
-    if (
-      msg.includes("401") ||
-      msg.includes("API key not valid") ||
-      msg.includes("ACCESS_TOKEN_TYPE_UNSUPPORTED")
-    ) {
-      throw new Error(
-        "Clave de API de Gemini no válida o sin permisos (Error 401). Verifica tu GEMINI_API_KEY en Google AI Studio (debe empezar por 'AIzaSy...') o selecciona otro motor en 'Configurar' (Local Ollama o Simulación Demo)."
+      console.log(
+        `[Gemini] Ejecutando extracción con modelo: ${config.model}${
+          config.apiVersion ? ` (endpoint ${config.apiVersion})` : ""
+        }...`
       );
-    }
-    if (
-      msg.includes("429") ||
-      msg.includes("quota") ||
-      msg.includes("ResourceExhausted")
-    ) {
-      throw new Error(
-        "Se ha superado la cuota de la API de Gemini (Error 429). Puedes usar 'Simulación Demo' o un motor local para continuar probando."
+
+      const model = genAI.getGenerativeModel(
+        {
+          model: config.model,
+          generationConfig: {
+            responseMimeType: "application/json",
+            // @ts-expect-error responseSchema is supported in Gemini 1.5+
+            responseSchema: GEMINI_RESPONSE_SCHEMA,
+            temperature: 0.2,
+          },
+          systemInstruction: GEMINI_MENU_EXTRACTION_SYSTEM_PROMPT,
+        },
+        config.apiVersion ? { apiVersion: config.apiVersion } : undefined
       );
+
+      const result = await model.generateContent([prompt, ...imageParts]);
+      const responseText = result.response.text();
+
+      try {
+        const parsedJson = JSON.parse(responseText);
+        const validated = ExtractedMenuSchema.parse(parsedJson);
+
+        console.log(`[Gemini] Extracción completada con éxito usando ${config.model}`);
+        successfulResult = {
+          data: validated,
+          modelUsed: config.model,
+        };
+        break;
+      } catch (parseErr) {
+        console.error(`[Gemini] Error al parsear JSON con ${config.model}:`, parseErr, responseText);
+        throw new Error(
+          "No se pudo extraer la carta en un formato válido. Por favor, reintenta con una foto más nítida."
+        );
+      }
+    } catch (err: any) {
+      lastError = err;
+      const errMsg = String(err?.message || err);
+      console.warn(`[Gemini] Falló intento con ${config.model}:`, errMsg);
+
+      // Si es un error de autenticación 401 o cuota 429, no es problema del modelo: salir inmediatamente
+      if (
+        errMsg.includes("401") ||
+        errMsg.includes("API key not valid") ||
+        errMsg.includes("ACCESS_TOKEN_TYPE_UNSUPPORTED") ||
+        errMsg.includes("429") ||
+        errMsg.includes("quota") ||
+        errMsg.includes("ResourceExhausted")
+      ) {
+        break;
+      }
+
+      // Si es 404 (modelo no encontrado o no soportado en v1beta), continuar al siguiente candidato
+      if (
+        errMsg.includes("404") ||
+        errMsg.includes("not found") ||
+        errMsg.includes("not supported")
+      ) {
+        continue;
+      }
+
+      // Otros errores de conexión puntual
+      continue;
     }
-    throw error;
   }
+
+  if (successfulResult) {
+    return successfulResult;
+  }
+
+  // Si ninguno tuvo éxito, formatear error descriptivo
+  console.error("Error definitivo en llamada a Gemini:", lastError);
+  const msg = lastError?.message || String(lastError);
+
+  if (
+    msg.includes("401") ||
+    msg.includes("API key not valid") ||
+    msg.includes("ACCESS_TOKEN_TYPE_UNSUPPORTED")
+  ) {
+    throw new Error(
+      "Clave de API de Gemini no válida o sin permisos (Error 401). Verifica tu clave en Google AI Studio (https://aistudio.google.com/app/apikey) o prueba con 'Simulación Demo' en el panel."
+    );
+  }
+
+  if (
+    msg.includes("429") ||
+    msg.includes("quota") ||
+    msg.includes("ResourceExhausted")
+  ) {
+    throw new Error(
+      "Se ha superado la cuota de la API de Gemini (Error 429). Puedes usar 'Simulación Demo' o un motor local (Ollama/LiteRT) para continuar probando."
+    );
+  }
+
+  if (
+    msg.includes("404") ||
+    msg.includes("not found") ||
+    msg.includes("not supported for generateContent")
+  ) {
+    throw new Error(
+      "Los modelos de Gemini Flash no están disponibles para esta clave de API o región (Error 404). Comprueba en Google Cloud Console que tu proyecto tenga habilitada la 'Generative Language API', o selecciona 'Simulación Demo' para continuar."
+    );
+  }
+
+  throw lastError || new Error("Ocurrió un error al procesar la carta con Gemini.");
 }
 
 export function getMockExtractedMenu(): ExtractedMenu {
