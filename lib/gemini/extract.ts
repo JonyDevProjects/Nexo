@@ -34,7 +34,10 @@ async function fetchAvailableModels(apiKey: string): Promise<string[]> {
       .filter(
         (m: any) =>
           Array.isArray(m.supportedGenerationMethods) &&
-          m.supportedGenerationMethods.includes("generateContent")
+          m.supportedGenerationMethods.includes("generateContent") &&
+          !String(m.name).toLowerCase().includes("tts") &&
+          !String(m.name).toLowerCase().includes("audio") &&
+          !String(m.name).toLowerCase().includes("embedding")
       )
       .map((m: any) => String(m.name).replace(/^models\//, ""));
   } catch (err: any) {
@@ -73,13 +76,16 @@ function resolveCandidateModels(
   // 2. Modelos reportados dinámicamente por la API de Google
   if (availableModels.length > 0) {
     const priorityList = [
+      "gemini-3.8-flash",
+      "gemini-flash-latest",
+      "gemini-2.0-flash",
       "gemini-1.5-flash-latest",
       "gemini-1.5-flash-002",
-      "gemini-2.0-flash",
       "gemini-2.5-flash",
       "gemini-1.5-flash",
       "gemini-1.5-flash-8b",
       "gemini-2.0-flash-exp",
+      "gemini-3.8-pro",
       "gemini-1.5-pro-latest",
       "gemini-1.5-pro",
     ];
@@ -90,24 +96,30 @@ function resolveCandidateModels(
       }
     }
 
-    // Cualquier otro modelo flash
+    // Cualquier otro modelo flash visual (excluyendo audio y tts)
     for (const m of availableModels) {
-      if (m.toLowerCase().includes("flash")) {
+      const lower = m.toLowerCase();
+      if (lower.includes("flash") && !lower.includes("tts") && !lower.includes("audio")) {
         addCandidate(m);
       }
     }
 
-    // Cualquier otro modelo con soporte generateContent
+    // Cualquier otro modelo con soporte generateContent visual
     for (const m of availableModels) {
-      addCandidate(m);
+      const lower = m.toLowerCase();
+      if (!lower.includes("tts") && !lower.includes("audio") && !lower.includes("embedding")) {
+        addCandidate(m);
+      }
     }
   }
 
   // 3. Fallback estático estándar (si ListModels no devolvió resultados)
   const defaultStaticList = [
+    "gemini-3.8-flash",
+    "gemini-flash-latest",
+    "gemini-2.0-flash",
     "gemini-1.5-flash-latest",
     "gemini-1.5-flash-002",
-    "gemini-2.0-flash",
     "gemini-2.5-flash",
     "gemini-1.5-flash",
     "gemini-1.5-flash-8b",
