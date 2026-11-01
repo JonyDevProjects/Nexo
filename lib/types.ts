@@ -48,21 +48,56 @@ export interface FullMenuData {
   categories: (Category & { dishes: Dish[] })[];
 }
 
-// Zod schema for extracted items
-export const ExtractedDishSchema = z.object({
+// Zod schema for extracted items with robust preprocessing for local LLM output variances
+export const ExtractedDishSchema = z.preprocess((val: any) => {
+  if (val && typeof val === "object") {
+    const name_es = val.name_es || val.name || val.nombre || val.dish_name || val.nombre_es || "";
+    const name_en = val.name_en || val.english_name || null;
+    const description_es = val.description_es || val.description || val.descripcion || val.descripcion_es || null;
+    const description_en = val.description_en || val.english_description || null;
+    let price = val.price ?? val.precio ?? 0;
+    if (typeof price === "string") {
+      price = parseFloat(price.replace(/[^0-9.,]/g, "").replace(",", ".")) || 0;
+    }
+    const allergens = Array.isArray(val.allergens || val.alergenos) ? (val.allergens || val.alergenos) : [];
+    return {
+      ...val,
+      name_es,
+      name_en,
+      description_es,
+      description_en,
+      price: Number(price) || 0,
+      allergens,
+    };
+  }
+  return val;
+}, z.object({
   name_es: z.string().min(1, "El nombre del plato es obligatorio"),
   name_en: z.string().optional().nullable(),
   description_es: z.string().optional().nullable(),
   description_en: z.string().optional().nullable(),
   price: z.number().min(0, "El precio debe ser un número positivo"),
   allergens: z.array(z.string()).default([]),
-});
+}));
 
-export const ExtractedCategorySchema = z.object({
+export const ExtractedCategorySchema = z.preprocess((val: any) => {
+  if (val && typeof val === "object") {
+    const name_es = val.name_es || val.name || val.nombre || val.categoria || val.category || val.nombre_es || "";
+    const name_en = val.name_en || val.english_name || null;
+    const dishes = Array.isArray(val.dishes || val.platos || val.items) ? (val.dishes || val.platos || val.items) : [];
+    return {
+      ...val,
+      name_es,
+      name_en,
+      dishes,
+    };
+  }
+  return val;
+}, z.object({
   name_es: z.string().min(1, "El nombre de la categoría es obligatorio"),
   name_en: z.string().optional().nullable(),
   dishes: z.array(ExtractedDishSchema),
-});
+}));
 
 export const ExtractedMenuSchema = z.object({
   categories: z.array(ExtractedCategorySchema),

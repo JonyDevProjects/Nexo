@@ -74,7 +74,10 @@ Responde ÚNICAMENTE con el objeto JSON válido.`;
     }
 
     const data = await res.json();
-    const content = data?.message?.content;
+    let content = data?.message?.content || "";
+    if (!content.trim() && data?.message?.thinking) {
+      content = data.message.thinking;
+    }
 
     if (!content) {
       throw new Error("El modelo local Ollama devolvió una respuesta vacía.");

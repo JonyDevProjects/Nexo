@@ -91,13 +91,13 @@ const visionServer = http.createServer(async (req, res) => {
                 role: "user",
                 content:
                   textPrompt ||
-                  "Transcribe de forma directa y concisa los platos, categorías y precios visibles en esta carta. Sé breve.",
+                  "Transcribe directamente y de forma exhaustiva todos los platos, categorías y precios visibles en esta carta. Sé directo y enumera cada elemento con su precio en euros.",
                 images: base64Images,
               },
             ],
             options: {
               temperature: 0.1,
-              num_predict: payload.max_tokens ? Math.max(payload.max_tokens, 2500) : 2500,
+              num_predict: payload.max_tokens ? Math.max(payload.max_tokens, 4096) : 4096,
               num_ctx: 8192,
             },
             stream: false,
@@ -111,6 +111,11 @@ const visionServer = http.createServer(async (req, res) => {
 
         const ollamaData = await ollamaRes.json();
         let assistantContent = ollamaData?.message?.content || "";
+
+        // Fallback to thinking if content is empty
+        if (!assistantContent.trim() && ollamaData?.message?.thinking) {
+          assistantContent = ollamaData.message.thinking;
+        }
 
         // Strip thinking tags if any
         assistantContent = assistantContent.replace(/<thought>[\s\S]*?<\/thought>/gi, "").trim();
@@ -215,6 +220,11 @@ const reasoningServer = http.createServer(async (req, res) => {
 
         const ollamaData = await ollamaRes.json();
         let assistantContent = ollamaData?.message?.content || "";
+
+        // Fallback to thinking if content is empty
+        if (!assistantContent.trim() && ollamaData?.message?.thinking) {
+          assistantContent = ollamaData.message.thinking;
+        }
 
         // Strip thinking tags from gemma
         assistantContent = assistantContent
