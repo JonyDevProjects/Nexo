@@ -1,7 +1,5 @@
 "use server";
 
-export const maxDuration = 60;
-
 import { extractMenu, ImageInput, ExtractionOptions } from "@/lib/ai";
 import { ExtractedMenu } from "@/lib/types";
 
