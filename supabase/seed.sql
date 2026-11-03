@@ -11,6 +11,48 @@ DECLARE
     cat_carnes UUID := 'c0000000-0000-0000-0000-000000000002'::UUID;
     cat_postres UUID := 'c0000000-0000-0000-0000-000000000003'::UUID;
 BEGIN
+    -- 0. Ensure Demo User exists in auth.users to satisfy restaurants_user_id_fkey
+    IF NOT EXISTS (SELECT 1 FROM auth.users WHERE id = demo_user_id) THEN
+        BEGIN
+            INSERT INTO auth.users (
+                instance_id,
+                id,
+                aud,
+                role,
+                email,
+                encrypted_password,
+                email_confirmed_at,
+                raw_app_meta_data,
+                raw_user_meta_data,
+                created_at,
+                updated_at,
+                confirmation_token,
+                recovery_token
+            ) VALUES (
+                '00000000-0000-0000-0000-000000000000',
+                demo_user_id,
+                'authenticated',
+                'authenticated',
+                'demo-bar-pepe@nexo.internal',
+                '',
+                NOW(),
+                '{"provider":"email","providers":["email"]}'::jsonb,
+                '{"name":"Bar Pepe Demo Owner"}'::jsonb,
+                NOW(),
+                NOW(),
+                '',
+                ''
+            );
+        EXCEPTION WHEN OTHERS THEN
+            BEGIN
+                INSERT INTO auth.users (id, aud, role, email, created_at, updated_at)
+                VALUES (demo_user_id, 'authenticated', 'authenticated', 'demo-bar-pepe@nexo.internal', NOW(), NOW());
+            EXCEPTION WHEN OTHERS THEN
+                SELECT id INTO demo_user_id FROM auth.users LIMIT 1;
+            END;
+        END;
+    END IF;
+
     -- 1. Insert Demo Restaurant
     INSERT INTO public.restaurants (
         id, user_id, name, slug, description, currency, is_published, subscription_tier
@@ -23,7 +65,10 @@ BEGIN
         'EUR',
         TRUE,
         'free'
-    ) ON CONFLICT (slug) DO NOTHING;
+    ) ON CONFLICT (slug) DO UPDATE SET
+        name = EXCLUDED.name,
+        description = EXCLUDED.description,
+        is_published = TRUE;
 
     -- 2. Insert Categories
     INSERT INTO public.categories (id, restaurant_id, name_es, name_en, order_index)
