@@ -75,6 +75,7 @@ export const InferenceControlPanel: React.FC<InferenceControlPanelProps> = ({
     }
 
     refreshStatuses();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const refreshStatuses = async () => {

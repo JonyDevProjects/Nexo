@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
+import Link from "next/link";
 import { FullMenuData } from "@/lib/types";
 import { EU_ALLERGENS } from "@/lib/allergens";
 import { AllergenBadge } from "@/components/ui/AllergenBadge";
@@ -240,14 +241,14 @@ export const MenuPublicView: React.FC<MenuPublicViewProps> = ({ data }) => {
 
         {/* Footer con Branding Viral del Plan Free */}
         <footer className="fixed bottom-0 left-0 right-0 py-2.5 px-4 bg-white/90 dark:bg-zinc-900/90 backdrop-blur-md border-t border-zinc-200 dark:border-zinc-800 text-center z-40">
-          <a
+          <Link
             href="/"
             className="inline-flex items-center gap-1.5 text-xs text-zinc-500 hover:text-amber-600 dark:text-zinc-400 dark:hover:text-amber-400 font-medium transition-colors"
           >
             <Sparkles className="w-3.5 h-3.5 text-amber-500" />
             <span>Carta creada con <strong className="text-zinc-800 dark:text-zinc-200 font-bold">Nexo</strong></span>
             <span className="hidden sm:inline">· Crea la tuya gratis en 3 minutos</span>
-          </a>
+          </Link>
         </footer>
       </div>
     </div>

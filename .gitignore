@@ -38,12 +38,5 @@ palace/
 palace.lock
 palace.rebuilt*
 roster-backups/
-hive/fleet.json
-hive/log.jsonl
-hive/hooks.sock
-hive/.floor-lock
-hive/cost-ledger.jsonl
-hive/spawn-requests/.failed/
-hive/spawn-requests/.done/
-hive/clear-requests/.failed/
-hive/clear-requests/.done/
+roster.json
+hive/
