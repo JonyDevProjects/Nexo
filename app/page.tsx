@@ -77,12 +77,31 @@ export default function HomePage() {
     setIsProcessingAi(true);
 
     const activeProvider = overrideProvider || inferenceConfig.provider;
+    const clientStartTime = Date.now();
 
     try {
       const formData = new FormData();
+      let totalPayloadBytes = 0;
+
       selectedImages.forEach((img) => {
         formData.append("images", img.dataUrl);
+        totalPayloadBytes += (img.dataUrl?.length || 0) * 0.75;
       });
+
+      const totalMb = totalPayloadBytes / (1024 * 1024);
+      console.log(
+        `[Nexo Client AI] Despachando inferencia: ${selectedImages.length} imagen(es), ~${totalMb.toFixed(
+          2
+        )} MB. Proveedor: ${activeProvider}`
+      );
+
+      if (totalMb > 4.2) {
+        console.warn(
+          `[Nexo Client AI] Advertencia de payload: ~${totalMb.toFixed(
+            2
+          )} MB se aproxima al límite de Vercel Serverless (4.5 MB).`
+        );
+      }
 
       formData.append("provider", activeProvider);
       if (inferenceConfig.geminiApiKey) {
@@ -97,6 +116,7 @@ export default function HomePage() {
       formData.append("litertReasoningUrl", inferenceConfig.litertReasoningUrl);
 
       const res = await extractMenuAction(formData);
+      const clientLatencyMs = Date.now() - clientStartTime;
 
       if (!res.success || !res.data) {
         if (res.canFallbackToMock) {
@@ -105,12 +125,36 @@ export default function HomePage() {
         throw new Error(res.error || "Error al procesar la carta con IA.");
       }
 
+      console.log(
+        `[Nexo Client AI] Inferencia completada con éxito en ${clientLatencyMs}ms. Proveedor: ${res.provider} (${res.modelName})`
+      );
+
       if (res.provider) setAiProvider(res.provider);
       if (res.modelName) setAiModelName(res.modelName);
       setExtractedMenu(res.data);
     } catch (err: any) {
-      console.error(err);
-      setErrorMsg(err.message || "Error al conectar con el servicio de IA.");
+      const clientLatencyMs = Date.now() - clientStartTime;
+      console.error(
+        `[Nexo Client AI] Error en procesamiento tras ${clientLatencyMs}ms:`,
+        err
+      );
+
+      let userFriendlyMessage =
+        err?.message || "Error al conectar con el servicio de IA.";
+
+      // Blindaje específico contra fallos de Server Actions por payload o timeout (HTTP 413 / 504)
+      if (
+        userFriendlyMessage.includes("An unexpected response was received from the server") ||
+        userFriendlyMessage.includes("Failed to fetch") ||
+        userFriendlyMessage.includes("413") ||
+        userFriendlyMessage.includes("FUNCTION_INVOCATION_TIMEOUT")
+      ) {
+        userFriendlyMessage =
+          "El servidor no pudo procesar la solicitud (posible límite de tamaño de imagen o tiempo de espera excedido). Puedes probar con una foto más ligera o usar la Simulación Demo.";
+        setCanFallbackToMock(true);
+      }
+
+      setErrorMsg(userFriendlyMessage);
     } finally {
       setIsProcessingAi(false);
     }

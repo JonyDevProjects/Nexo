@@ -1,5 +1,7 @@
 "use server";
 
+export const maxDuration = 60;
+
 import { extractMenu, ImageInput, ExtractionOptions } from "@/lib/ai";
 import { ExtractedMenu } from "@/lib/types";
 
@@ -119,6 +121,7 @@ export async function checkAiProvidersAction(): Promise<Record<string, ProviderS
 export async function extractMenuAction(
   formData: FormData
 ): Promise<ExtractMenuActionResult> {
+  const startTime = Date.now();
   try {
     const images: ImageInput[] = [];
     const entries = formData.getAll("images");
@@ -143,19 +146,10 @@ export async function extractMenuAction(
       }
     }
 
-    if (images.length === 0) {
-      return {
-        success: false,
-        error: "Debes subir al menos una fotografía de la carta.",
-      };
-    }
-
-    if (images.length > 4) {
-      return {
-        success: false,
-        error: "El límite es de hasta 4 imágenes por escaneo.",
-      };
-    }
+    const totalPayloadBytes = images.reduce(
+      (acc, img) => acc + (img.base64Data?.length || 0) * 0.75,
+      0
+    );
 
     // Opciones del motor de inferencia enviadas desde el cliente
     const provider = formData.get("provider") as any;
@@ -170,6 +164,28 @@ export async function extractMenuAction(
     const litertReasoningUrl =
       (formData.get("litertReasoningUrl") as string | null) || undefined;
 
+    console.log(
+      `[Nexo Server Action] Invocación extractMenuAction: ${images.length} imagen(es), ~${(
+        totalPayloadBytes /
+        1024 /
+        1024
+      ).toFixed(2)} MB, provider=${provider || "auto"}`
+    );
+
+    if (images.length === 0) {
+      return {
+        success: false,
+        error: "Debes subir al menos una fotografía de la carta.",
+      };
+    }
+
+    if (images.length > 4) {
+      return {
+        success: false,
+        error: "El límite es de hasta 4 imágenes por escaneo.",
+      };
+    }
+
     const options: ExtractionOptions = {
       provider,
       apiKey,
@@ -181,6 +197,16 @@ export async function extractMenuAction(
     };
 
     const result = await extractMenu(images, options);
+    const latencyMs = Date.now() - startTime;
+    const totalDishes =
+      result.data?.categories?.reduce(
+        (acc, cat) => acc + (cat.dishes?.length || 0),
+        0
+      ) || 0;
+
+    console.log(
+      `[Nexo Server Action] Inferencia completada con éxito en ${latencyMs}ms. Proveedor: ${result.provider} (${result.modelName}). Platos extraídos: ${totalDishes}`
+    );
 
     return {
       success: true,
@@ -189,7 +215,11 @@ export async function extractMenuAction(
       modelName: result.modelName,
     };
   } catch (error: any) {
-    console.error("Error en extractMenuAction:", error);
+    const latencyMs = Date.now() - startTime;
+    console.error(
+      `[Nexo Server Action] Fallo en extractMenuAction tras ${latencyMs}ms:`,
+      error?.message || error
+    );
     return {
       success: false,
       error: error.message || "Error al procesar la imagen con el motor de IA.",

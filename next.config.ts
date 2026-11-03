@@ -34,6 +34,11 @@ const securityHeaders = [
 ];
 
 const nextConfig: NextConfig = {
+  experimental: {
+    serverActions: {
+      bodySizeLimit: "4.5mb",
+    },
+  },
   outputFileTracingRoot: path.join(__dirname),
   images: {
     remotePatterns: [

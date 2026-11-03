@@ -111,6 +111,38 @@ Para verificar la revalidación incremental (ISR) y las cabeceras `Cache-Control
 
 ---
 
+### 2.7. Blindaje de Server Actions en Vercel Serverless (HTTP 413 y Timeouts)
+
+#### **Problema Detectado:**
+Al digitalizar cartas fotográficas en el entorno de producción desplegado en Vercel (`https://nexo-q5v7.vercel.app/`), el usuario recibía el error técnico:
+`Error: An unexpected response was received from the server.`
+
+#### **Causa Raíz:**
+1. **Límite de Payload en Next.js Server Actions (HTTP 413):**  
+   Por defecto, Next.js 15 impone un límite estricto de **1 MB** en las Server Actions (`serverActions.bodySizeLimit: '1mb'`). Al enviar 2 o 3 fotografías de cartas codificadas en Data URLs base64 (~500–900 kB cada una tras compresión en Canvas), el `FormData` superaba los 1.5–2.5 MB. El servidor rechazaba la petición con `HTTP 413 Payload Too Large` y rompía el protocolo de streaming RSC, desencadenando el mensaje genérico de error en el cliente.
+2. **Timeout de Ejecución Serverless (HTTP 504):**  
+   Las funciones serverless de Vercel (Hobby) poseen un timeout por defecto de 15 segundos. Cartas densas procesadas en la nube o a través de reintentos de modelos podían agotar la ventana.
+
+#### **Solución y Blindaje Aplicado (NXE-8):**
+1. **Ampliación del Límite de Payload (`next.config.ts`):**  
+   Se ajustó la configuración experimental al límite máximo admitido por la infraestructura de Vercel Serverless:
+   ```typescript
+   experimental: {
+     serverActions: {
+       bodySizeLimit: "4.5mb",
+     },
+   },
+   ```
+2. **Extensión del Timeout a 60 Segundos (`maxDuration`):**  
+   Se configuró `export const maxDuration = 60;` tanto en [`app/actions/ai.ts`](file:///Users/jonathanquishpe/JoniDev/Nexo/app/actions/ai.ts) como en [`app/layout.tsx`](file:///Users/jonathanquishpe/JoniDev/Nexo/app/layout.tsx).
+3. **Telemetría de Payload y Latencia:**  
+   - En [`app/actions/ai.ts`](file:///Users/jonathanquishpe/JoniDev/Nexo/app/actions/ai.ts), se miden y registran el tamaño de los bytes recibidos, el número de imágenes, el motor seleccionado, el número total de platos extraídos y la latencia exacta de ejecución en milisegundos.
+   - En [`app/page.tsx`](file:///Users/jonathanquishpe/JoniDev/Nexo/app/page.tsx), se calcula el peso estimado antes del despacho (`~totalMb`), emitiendo advertencia de consola si se superan los 4.2 MB.
+4. **Captura Resiliente de Errores en UI:**  
+   Si se produce un fallo imprevisto de transporte (`An unexpected response was received from the server`, `Failed to fetch`, `413`), la UI intercepta el mensaje técnico y presenta al hostelero una explicación en español comprensible con activación inmediata del botón de fallback a Mock Demo.
+
+---
+
 ## 3. Estado de la Base de Código (Rama `develop`)
 
 ### Componentes y Acciones Implementadas:
