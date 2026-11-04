@@ -157,6 +157,10 @@ async function fetchPublicMenuFromSource(slug: string): Promise<FullMenuData | n
       .single();
 
     if (resError || !restaurant) {
+      if (slug === "bar-pepe" || slug === "demo" || !process.env.NEXT_PUBLIC_SUPABASE_URL?.includes("supabase.co")) {
+        console.warn(`[Public Menu] Supabase REST no disponible o restaurante no encontrado. Usando fallback de Bar Pepe para /m/${slug}.`);
+        return DEMO_RESTAURANT_MENU;
+      }
       return null;
     }
 
@@ -168,6 +172,9 @@ async function fetchPublicMenuFromSource(slug: string): Promise<FullMenuData | n
 
     if (catError) {
       console.error("Error al obtener categorías:", catError);
+      if (slug === "bar-pepe" || slug === "demo" || !process.env.NEXT_PUBLIC_SUPABASE_URL?.includes("supabase.co")) {
+        return DEMO_RESTAURANT_MENU;
+      }
       return null;
     }
 
@@ -177,6 +184,9 @@ async function fetchPublicMenuFromSource(slug: string): Promise<FullMenuData | n
     };
   } catch (error) {
     console.error("Error en getPublicMenuBySlug:", error);
+    if (slug === "bar-pepe" || slug === "demo" || !process.env.NEXT_PUBLIC_SUPABASE_URL?.includes("supabase.co")) {
+      return DEMO_RESTAURANT_MENU;
+    }
     return null;
   }
 }
