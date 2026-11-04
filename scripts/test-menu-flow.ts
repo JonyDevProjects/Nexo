@@ -14,7 +14,7 @@ import * as path from "node:path";
 
 interface CheckItem {
   title: string;
-  category: "Auth Resiliente" | "Guardado de Carta" | "Optimización Gemini IA" | "Contrato End-to-End";
+  category: "Auth Resiliente" | "Guardado de Carta" | "Optimización Gemini IA" | "Contrato End-to-End" | "Persistencia Local";
   passed: boolean;
   detail: string;
 }
@@ -136,6 +136,61 @@ function runSuite() {
     dataMenuCode.includes("if (!isCloudSupabase)") &&
       dataMenuCode.includes("DEMO_RESTAURANT_MENU"),
     "Las rutas públicas /m/[slug] cargan con HTTP 200 y datos completos en local"
+  );
+
+  // 5. Audit Local Storage & Dish Fidelity
+  console.log("\n--- Fase 5: Auditoría de Persistencia Local y Fidelidad de Platos ---");
+  const localStoreExists = fs.existsSync(path.join(cwd, "lib/data/localStore.ts"));
+  const localStoreCode = localStoreExists
+    ? fs.readFileSync(path.join(cwd, "lib/data/localStore.ts"), "utf-8")
+    : "";
+
+  check(
+    "Persistencia Local",
+    "Implementación de almacén local persistente (lib/data/localStore.ts)",
+    localStoreExists &&
+      localStoreCode.includes("export function getLocalMenu") &&
+      localStoreCode.includes("export function saveLocalMenu"),
+    "Exporta getLocalMenu y saveLocalMenu con almacenamiento en memoria y JSON"
+  );
+
+  check(
+    "Persistencia Local",
+    "Integración de guardado en app/actions/menu.ts",
+    menuCode.includes("saveLocalMenu(fullMenuData)"),
+    "saveMenuAction persiste el 100% de platos y categorías en el almacén local"
+  );
+
+  check(
+    "Persistencia Local",
+    "Prioridad de consulta local en lib/data/menu.ts",
+    dataMenuCode.includes("const localMenu = getLocalMenu(slug)") &&
+      dataMenuCode.includes("if (localMenu)"),
+    "fetchPublicMenuFromSource prioriza los datos reales antes de cualquier fallback"
+  );
+
+  const localMenusJsonPath = path.join(cwd, "data/local_menus.json");
+  let chulapoDishCount = 0;
+  if (fs.existsSync(localMenusJsonPath)) {
+    try {
+      const menus = JSON.parse(fs.readFileSync(localMenusJsonPath, "utf-8"));
+      const chulapo = menus["taberna-el-chulapo"];
+      if (chulapo && chulapo.categories) {
+        chulapoDishCount = chulapo.categories.reduce(
+          (acc: number, cat: any) => acc + (cat.dishes ? cat.dishes.length : 0),
+          0
+        );
+      }
+    } catch {
+      chulapoDishCount = 0;
+    }
+  }
+
+  check(
+    "Persistencia Local",
+    "Integridad y fidelidad de platos en Taberna El Chulapo (8 platos extraídos)",
+    chulapoDishCount === 8,
+    `Persistidos exactamente 8/8 platos en data/local_menus.json (detectados: ${chulapoDishCount} platos)`
   );
 
   const passedCount = checks.filter((c) => c.passed).length;

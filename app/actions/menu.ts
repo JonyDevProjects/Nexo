@@ -2,7 +2,8 @@
 
 import { revalidateTag, revalidatePath } from "next/cache";
 import { createServerSupabaseClient } from "../../lib/supabase/server";
-import { ExtractedMenu } from "../../lib/types";
+import { ExtractedMenu, FullMenuData } from "../../lib/types";
+import { saveLocalMenu } from "../../lib/data/localStore";
 
 export interface SaveMenuPayload {
   restaurantName: string;
@@ -35,6 +36,49 @@ export async function saveMenuAction(
       .trim()
       .replace(/[^a-z0-9-]/g, "-")
       .replace(/-+/g, "-");
+
+    // Construir objeto persistente FullMenuData con el 100% de platos y categorías
+    const restaurantId = `res-${cleanSlug}`;
+    const fullMenuData: FullMenuData = {
+      restaurant: {
+        id: restaurantId,
+        user_id: "demo-anonymous-user",
+        name: payload.restaurantName,
+        slug: cleanSlug,
+        description: payload.description || null,
+        currency: "EUR",
+        logo_url: null,
+        is_published: true,
+        subscription_tier: "free",
+        ai_scans_today: 1,
+        ai_scans_reset_at: new Date().toISOString(),
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      },
+      categories: payload.menu.categories.map((cat, cIdx) => ({
+        id: `cat-${cleanSlug}-${cIdx + 1}`,
+        restaurant_id: restaurantId,
+        name_es: cat.name_es,
+        name_en: cat.name_en || null,
+        order_index: cIdx,
+        dishes: (cat.dishes || []).map((dish, dIdx) => ({
+          id: `dish-${cleanSlug}-${cIdx + 1}-${dIdx + 1}`,
+          restaurant_id: restaurantId,
+          category_id: `cat-${cleanSlug}-${cIdx + 1}`,
+          name_es: dish.name_es,
+          name_en: dish.name_en || null,
+          description_es: dish.description_es || null,
+          description_en: dish.description_en || null,
+          price: dish.price,
+          allergens: dish.allergens || [],
+          is_available: (dish as any).is_available ?? true,
+          order_index: dIdx,
+        })),
+      })),
+    };
+
+    // Persistir siempre localmente en disco y memoria para garantizar fidelidad total
+    saveLocalMenu(fullMenuData);
 
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
     const isCloudSupabase = Boolean(supabaseUrl && supabaseUrl.includes("supabase.co"));

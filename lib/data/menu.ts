@@ -1,6 +1,7 @@
 import { unstable_cache } from "next/cache";
 import { createPublicSupabaseClient } from "../supabase/public";
 import { FullMenuData } from "../types";
+import { getLocalMenu } from "./localStore";
 
 export const DEMO_RESTAURANT_MENU: FullMenuData = {
   restaurant: {
@@ -128,6 +129,12 @@ export const DEMO_RESTAURANT_MENU: FullMenuData = {
 };
 
 async function fetchPublicMenuFromSource(slug: string): Promise<FullMenuData | null> {
+  // 1. Prioridad: Consultar el almacén persistente local de cartas creadas
+  const localMenu = getLocalMenu(slug);
+  if (localMenu) {
+    return localMenu;
+  }
+
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const isCloudSupabase = Boolean(supabaseUrl && supabaseUrl.includes("supabase.co"));
 
@@ -135,15 +142,7 @@ async function fetchPublicMenuFromSource(slug: string): Promise<FullMenuData | n
     if (slug === "bar-pepe" || slug === "demo" || slug === "mibar") {
       return DEMO_RESTAURANT_MENU;
     }
-    // Return demo menu for any slug if in local demo mode
-    return {
-      ...DEMO_RESTAURANT_MENU,
-      restaurant: {
-        ...DEMO_RESTAURANT_MENU.restaurant,
-        slug: slug,
-        name: slug.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()),
-      },
-    };
+    return null;
   }
 
   try {
