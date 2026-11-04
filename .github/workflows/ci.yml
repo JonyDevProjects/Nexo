@@ -50,6 +50,9 @@ jobs:
       - name: Field Pilot QA & TTV SLA Simulation
         run: npm run test:field
 
+      - name: Menu Flow & Local Resilient Auth Suite
+        run: npm run test:flow
+
   # ----------------------------------------------------------------------------
   # Job 2: Dockerfile & Container Parity Verification
   # ----------------------------------------------------------------------------

@@ -381,15 +381,13 @@ export const InferenceControlPanel: React.FC<InferenceControlPanelProps> = ({
                     className="w-full px-2.5 py-1.5 text-xs rounded-lg border border-sky-200 dark:border-sky-800 bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 font-mono"
                   >
                     <option value="auto">Auto (Detección automática / Recomendado)</option>
-                    <option value="gemini-3.8-flash">gemini-3.8-flash (Recomendado por Google)</option>
-                    <option value="gemini-flash-latest">gemini-flash-latest (Última versión)</option>
+                    <option value="gemini-flash-lite-latest">gemini-flash-lite-latest (Ultra-rápido / Recomendado)</option>
                     <option value="gemini-2.0-flash">gemini-2.0-flash (Próxima generación)</option>
                     <option value="gemini-1.5-flash-latest">gemini-1.5-flash-latest</option>
                     <option value="gemini-1.5-flash-002">gemini-1.5-flash-002 (Estable)</option>
-                    <option value="gemini-2.5-flash">gemini-2.5-flash</option>
-                    <option value="gemini-1.5-flash">gemini-1.5-flash (Legacy)</option>
+                    <option value="gemini-1.5-flash">gemini-1.5-flash (Estable estándar)</option>
+                    <option value="gemini-flash-latest">gemini-flash-latest</option>
                     <option value="gemini-1.5-flash-8b">gemini-1.5-flash-8b (Ultra-rápido)</option>
-                    <option value="gemini-3.8-pro">gemini-3.8-pro</option>
                     <option value="gemini-1.5-pro">gemini-1.5-pro (Máxima precisión)</option>
                   </select>
                 </div>

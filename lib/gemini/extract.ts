@@ -14,7 +14,7 @@ export interface GeminiExtractionResult {
 
 /**
  * Consulta la lista de modelos permitidos para la clave de API activa mediante ModelService.ListModels.
- * Permite autodescubrir qué variantes (gemini-1.5-flash-latest, gemini-2.0-flash, gemini-1.5-flash-002, etc.)
+ * Permite autodescubrir qué variantes (gemini-flash-lite-latest, gemini-2.0-flash, gemini-1.5-flash-latest, etc.)
  * están aprovisionadas en la cuenta de Google AI Studio del usuario.
  */
 async function fetchAvailableModels(apiKey: string): Promise<string[]> {
@@ -37,7 +37,8 @@ async function fetchAvailableModels(apiKey: string): Promise<string[]> {
           m.supportedGenerationMethods.includes("generateContent") &&
           !String(m.name).toLowerCase().includes("tts") &&
           !String(m.name).toLowerCase().includes("audio") &&
-          !String(m.name).toLowerCase().includes("embedding")
+          !String(m.name).toLowerCase().includes("embedding") &&
+          !String(m.name).toLowerCase().includes("2.5")
       )
       .map((m: any) => String(m.name).replace(/^models\//, ""));
   } catch (err: any) {
@@ -58,7 +59,7 @@ function resolveCandidateModels(
 
   const addCandidate = (model: string, apiVersion?: string) => {
     const clean = model.replace(/^models\//, "").trim();
-    if (!clean) return;
+    if (!clean || clean.includes("2.5")) return;
     if (!candidates.some((c) => c.model === clean && c.apiVersion === apiVersion)) {
       candidates.push({ model: clean, apiVersion });
     }
@@ -66,14 +67,14 @@ function resolveCandidateModels(
 
   // 1. Modelo preferido por el usuario o entorno
   const envModel = process.env.GEMINI_MODEL;
-  if (preferredModel && preferredModel !== "auto") {
+  if (preferredModel && preferredModel !== "auto" && !preferredModel.includes("2.5")) {
     addCandidate(preferredModel);
   }
-  if (envModel && envModel !== "auto") {
+  if (envModel && envModel !== "auto" && !envModel.includes("2.5")) {
     addCandidate(envModel);
   }
 
-  // 2. Modelos reportados dinámicamente por la API de Google
+  // 2. Modelos reportados dinámicamente por la API de Google (prioridad: estables y rápidos)
   if (availableModels.length > 0) {
     const priorityList = [
       "gemini-flash-lite-latest",
@@ -84,7 +85,6 @@ function resolveCandidateModels(
       "gemini-1.5-flash-002",
       "gemini-1.5-flash-8b",
       "gemini-2.0-flash-exp",
-      "gemini-3.8-flash",
       "gemini-1.5-pro-latest",
       "gemini-1.5-pro",
     ];
@@ -95,10 +95,10 @@ function resolveCandidateModels(
       }
     }
 
-    // Cualquier otro modelo flash visual (excluyendo audio y tts)
+    // Cualquier otro modelo flash visual (excluyendo audio, tts y 2.5)
     for (const m of availableModels) {
       const lower = m.toLowerCase();
-      if (lower.includes("flash") && !lower.includes("tts") && !lower.includes("audio")) {
+      if (lower.includes("flash") && !lower.includes("tts") && !lower.includes("audio") && !lower.includes("2.5")) {
         addCandidate(m);
       }
     }
@@ -106,7 +106,7 @@ function resolveCandidateModels(
     // Cualquier otro modelo con soporte generateContent visual
     for (const m of availableModels) {
       const lower = m.toLowerCase();
-      if (!lower.includes("tts") && !lower.includes("audio") && !lower.includes("embedding")) {
+      if (!lower.includes("tts") && !lower.includes("audio") && !lower.includes("embedding") && !lower.includes("2.5")) {
         addCandidate(m);
       }
     }
@@ -121,7 +121,6 @@ function resolveCandidateModels(
     "gemini-flash-latest",
     "gemini-1.5-flash-002",
     "gemini-1.5-flash-8b",
-    "gemini-3.8-flash",
   ];
 
   for (const m of defaultStaticList) {
@@ -182,6 +181,25 @@ export async function extractMenuFromImages(
         }...`
       );
 
+      const timeoutMs = 20000; // Timeout estricto de 20s por intento (SLA < 60s total)
+      const abortController = new AbortController();
+      let timer: NodeJS.Timeout | null = null;
+
+      const timeoutPromise = new Promise<never>((_, reject) => {
+        timer = setTimeout(() => {
+          abortController.abort();
+          reject(new Error(`Timeout de ${timeoutMs}ms superado para modelo ${config.model}`));
+        }, timeoutMs);
+      });
+
+      const requestOptions: any = {
+        signal: abortController.signal,
+        timeout: timeoutMs,
+      };
+      if (config.apiVersion) {
+        requestOptions.apiVersion = config.apiVersion;
+      }
+
       const model = genAI.getGenerativeModel(
         {
           model: config.model,
@@ -193,19 +211,16 @@ export async function extractMenuFromImages(
           },
           systemInstruction: GEMINI_MENU_EXTRACTION_SYSTEM_PROMPT,
         },
-        config.apiVersion ? { apiVersion: config.apiVersion } : undefined
+        requestOptions
       );
 
-      const timeoutMs = 25000;
       const generatePromise = model.generateContent([prompt, ...imageParts]);
-      const timeoutPromise = new Promise<never>((_, reject) => {
-        setTimeout(
-          () => reject(new Error(`Timeout de ${timeoutMs}ms superado para modelo ${config.model}`)),
-          timeoutMs
-        );
-      });
-
-      const result = await Promise.race([generatePromise, timeoutPromise]);
+      let result: any;
+      try {
+        result = await Promise.race([generatePromise, timeoutPromise]);
+      } finally {
+        if (timer) clearTimeout(timer);
+      }
       const responseText = result.response.text();
 
       try {

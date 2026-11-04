@@ -129,9 +129,9 @@ export const DEMO_RESTAURANT_MENU: FullMenuData = {
 
 async function fetchPublicMenuFromSource(slug: string): Promise<FullMenuData | null> {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const isSupabaseConfigured = supabaseUrl && !supabaseUrl.includes("dummy");
+  const isCloudSupabase = Boolean(supabaseUrl && supabaseUrl.includes("supabase.co"));
 
-  if (!isSupabaseConfigured) {
+  if (!isCloudSupabase) {
     if (slug === "bar-pepe" || slug === "demo" || slug === "mibar") {
       return DEMO_RESTAURANT_MENU;
     }
