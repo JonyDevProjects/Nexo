@@ -6,7 +6,7 @@ import { FullMenuData } from "@/lib/types";
 import { EU_ALLERGENS } from "@/lib/allergens";
 import { AllergenBadge } from "@/components/ui/AllergenBadge";
 import { formatPrice } from "@/lib/utils";
-import { Globe, Moon, Sun, UtensilsCrossed, AlertTriangle, Sparkles } from "lucide-react";
+import { Globe, Moon, Sun, UtensilsCrossed, AlertTriangle, Sparkles, QrCode } from "lucide-react";
 
 interface MenuPublicViewProps {
   data: FullMenuData;
@@ -49,8 +49,18 @@ export const MenuPublicView: React.FC<MenuPublicViewProps> = ({ data }) => {
               )}
             </div>
 
-            {/* Controles de Idioma y Modo Oscuro */}
+            {/* Controles de Idioma, Modo Oscuro y QR de Mesa */}
             <div className="flex items-center gap-2 flex-shrink-0">
+              <Link
+                href={`/qr/${data.restaurant.slug}`}
+                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 text-xs font-semibold hover:bg-zinc-100 dark:hover:bg-zinc-700 text-zinc-700 dark:text-zinc-200 transition-colors"
+                title="Ver y descargar QR de mesa"
+                aria-label="Ver y descargar QR de mesa"
+              >
+                <QrCode className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
+                <span className="hidden sm:inline">QR Mesa</span>
+              </Link>
+
               <button
                 type="button"
                 onClick={() => setLang(lang === "es" ? "en" : "es")}

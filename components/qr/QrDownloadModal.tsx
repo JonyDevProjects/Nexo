@@ -3,7 +3,7 @@
 import React, { useRef, useState } from "react";
 import { QRCodeSVG } from "qrcode.react";
 import { Button } from "@/components/ui/Button";
-import { Download, Printer, X, ExternalLink, Check, FileCode, Mail, ShieldCheck, Loader2 } from "lucide-react";
+import { Download, Printer, X, ExternalLink, Check, FileCode, Mail, ShieldCheck, Loader2, QrCode } from "lucide-react";
 import { linkEmailAction } from "@/app/actions/auth";
 
 interface QrDownloadModalProps {
@@ -125,21 +125,33 @@ export const QrDownloadModal: React.FC<QrDownloadModalProps> = ({
           </button>
         </div>
 
-        {/* Enlace directo a la carta (oculto al imprimir) */}
-        <div className="p-3 bg-zinc-50 dark:bg-zinc-800/60 rounded-2xl border border-zinc-200/80 dark:border-zinc-700/80 flex items-center justify-between gap-2 print:hidden">
-          <div className="truncate text-xs text-zinc-600 dark:text-zinc-300">
+        {/* Enlace directo a la carta y página QR (oculto al imprimir) */}
+        <div className="p-3 bg-zinc-50 dark:bg-zinc-800/60 rounded-2xl border border-zinc-200/80 dark:border-zinc-700/80 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5 print:hidden">
+          <div className="truncate text-xs text-zinc-600 dark:text-zinc-300 min-w-0">
             <span className="font-semibold text-zinc-900 dark:text-zinc-100 block">Enlace de tu carta:</span>
-            <span className="font-mono text-amber-600 dark:text-amber-400 truncate">{appUrl}</span>
+            <span className="font-mono text-amber-600 dark:text-amber-400 truncate block">{appUrl}</span>
           </div>
-          <a
-            href={appUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex-shrink-0 inline-flex items-center gap-1 px-3 py-1.5 rounded-xl bg-zinc-200 hover:bg-zinc-300 dark:bg-zinc-700 dark:hover:bg-zinc-600 text-xs font-semibold text-zinc-800 dark:text-zinc-100 transition-colors"
-          >
-            <ExternalLink className="w-3.5 h-3.5" />
-            <span>Ver Carta</span>
-          </a>
+          <div className="flex items-center gap-1.5 flex-shrink-0 w-full sm:w-auto">
+            <a
+              href={`/qr/${slug}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-1 px-2.5 py-1.5 rounded-xl border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 hover:bg-zinc-100 dark:hover:bg-zinc-700 text-xs font-semibold text-zinc-800 dark:text-zinc-100 transition-colors"
+              title="Abrir página dedicada del código QR"
+            >
+              <QrCode className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
+              <span>Página QR</span>
+            </a>
+            <a
+              href={appUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-1 px-3 py-1.5 rounded-xl bg-zinc-200 hover:bg-zinc-300 dark:bg-zinc-700 dark:hover:bg-zinc-600 text-xs font-semibold text-zinc-800 dark:text-zinc-100 transition-colors"
+            >
+              <ExternalLink className="w-3.5 h-3.5" />
+              <span>Ver Carta</span>
+            </a>
+          </div>
         </div>
 
         {/* Plantilla A5 Imprimible / Peana de mesa */}

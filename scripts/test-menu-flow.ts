@@ -14,7 +14,7 @@ import * as path from "node:path";
 
 interface CheckItem {
   title: string;
-  category: "Auth Resiliente" | "Guardado de Carta" | "Optimización Gemini IA" | "Contrato End-to-End" | "Persistencia Local";
+  category: "Auth Resiliente" | "Guardado de Carta" | "Optimización Gemini IA" | "Contrato End-to-End" | "Persistencia Local" | "Vista Dedicada QR";
   passed: boolean;
   detail: string;
 }
@@ -191,6 +191,53 @@ function runSuite() {
     "Integridad y fidelidad de platos en Taberna El Chulapo (8 platos extraídos)",
     chulapoDishCount === 8,
     `Persistidos exactamente 8/8 platos en data/local_menus.json (detectados: ${chulapoDishCount} platos)`
+  );
+
+  // 6. Audit Dedicated /qr/[slug] Page & Stand
+  console.log("\n--- Fase 6: Auditoría de Ruta Dedicada /qr/[slug] y Plantilla A5 ---");
+  const qrPagePath = path.join(cwd, "app/qr/[slug]/page.tsx");
+  const qrPageExists = fs.existsSync(qrPagePath);
+  const qrPageCode = qrPageExists ? fs.readFileSync(qrPagePath, "utf-8") : "";
+
+  check(
+    "Vista Dedicada QR",
+    "Existencia y contrato de app/qr/[slug]/page.tsx (Next.js 15 async params)",
+    qrPageExists &&
+      qrPageCode.includes("await params") &&
+      qrPageCode.includes("getPublicMenuBySlug") &&
+      qrPageCode.includes("QrDedicatedView"),
+    "Ruta de servidor /qr/[slug] implementada con resolución ISR de carta"
+  );
+
+  const qrDedicatedViewPath = path.join(cwd, "components/qr/QrDedicatedView.tsx");
+  const qrDedicatedExists = fs.existsSync(qrDedicatedViewPath);
+  const qrDedicatedCode = qrDedicatedExists ? fs.readFileSync(qrDedicatedViewPath, "utf-8") : "";
+
+  check(
+    "Vista Dedicada QR",
+    "Componente QrDedicatedView con peana A5, descarga PNG/SVG e impresión",
+    qrDedicatedExists &&
+      qrDedicatedCode.includes('id="nexo-a5-stand"') &&
+      qrDedicatedCode.includes("QRCodeSVG") &&
+      qrDedicatedCode.includes("window.print()") &&
+      qrDedicatedCode.includes("downloadPNG") &&
+      qrDedicatedCode.includes("downloadSVG"),
+    "Plantilla #nexo-a5-stand y exportaciones de alta resolución disponibles"
+  );
+
+  const publicViewCode = fs.readFileSync(path.join(cwd, "components/menu/MenuPublicView.tsx"), "utf-8");
+  check(
+    "Vista Dedicada QR",
+    "Navegabilidad cruzada: botón de acceso a /qr/[slug] en la carta pública",
+    publicViewCode.includes("/qr/${data.restaurant.slug}") || publicViewCode.includes('href={`/qr/${'),
+    "Enlace a la peana QR visible para el hostelero desde la cabecera de la carta"
+  );
+
+  check(
+    "Vista Dedicada QR",
+    "Revalidación de caché en app/actions/menu.ts para /qr/[slug]",
+    menuCode.includes("revalidatePath(`/qr/${cleanSlug}`)"),
+    "saveMenuAction invalida instantáneamente la caché de la página QR al actualizar la carta"
   );
 
   const passedCount = checks.filter((c) => c.passed).length;

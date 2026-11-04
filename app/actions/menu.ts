@@ -184,10 +184,11 @@ export async function saveMenuAction(
       );
     }
 
-    // Invalidate edge cache tag and page route for this restaurant
+    // Invalidate edge cache tag and page routes for this restaurant
     try {
       revalidateTag(`menu-${cleanSlug}`);
       revalidatePath(`/m/${cleanSlug}`);
+      revalidatePath(`/qr/${cleanSlug}`);
     } catch {
       // ignore in test/dev
     }
