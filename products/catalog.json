@@ -11,12 +11,14 @@
       "targetSector": "Hostelería, Restauración & Bares",
       "repository": {
         "url": "https://github.com/JonyDevProjects/nexo-menu.git",
+        "localPath": "/Users/jonathanquishpe/JoniDev/JonyDevProjects/nexo-menu",
         "defaultBranch": "develop",
         "productionBranch": "main"
       },
       "productOwner": {
-        "id": "nexo-po-menu",
-        "name": "Product Owner Carta Digital & Hostelería",
+        "id": "nexo-po-menu-mw2avelz",
+        "name": "Nexo-PO-Menu",
+        "role": "Product Owner Carta Digital & Hostelería",
         "responsibilities": [
           "Interlocución y gestión de expectativas con hosteleros y clientes del sector restauración.",
           "Definición y priorización del backlog de producto (pedidos en mesa, fotos de platos, analítica de alérgenos).",
