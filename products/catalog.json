@@ -1,0 +1,47 @@
+{
+  "updatedAt": "2026-11-04T16:15:00.000Z",
+  "version": "1.0.0",
+  "organization": "Nexo Software Factory & Product Hub",
+  "products": [
+    {
+      "id": "PRD-001",
+      "code": "nexo-menu",
+      "name": "Nexo Menu — Digital QR Menu & Allergen Intelligence",
+      "status": "production_ready_and_iterating",
+      "targetSector": "Hostelería, Restauración & Bares",
+      "repository": {
+        "url": "https://github.com/JonyDevProjects/nexo-menu.git",
+        "defaultBranch": "develop",
+        "productionBranch": "main"
+      },
+      "productOwner": {
+        "id": "nexo-po-menu",
+        "name": "Product Owner Carta Digital & Hostelería",
+        "responsibilities": [
+          "Interlocución y gestión de expectativas con hosteleros y clientes del sector restauración.",
+          "Definición y priorización del backlog de producto (pedidos en mesa, fotos de platos, analítica de alérgenos).",
+          "Alineación con directrices legales de seguridad alimentaria (Reglamento UE 1169/2011).",
+          "Validación funcional de entregables y demos de aceptación."
+        ]
+      },
+      "technicalOverview": {
+        "framework": "Next.js 15 (React 19, TypeScript)",
+        "database": "Supabase PostgreSQL 15 con Row Level Security (RLS)",
+        "aiInference": "Gemini 2.0 Flash / LiteRT / Ollama",
+        "deployment": "Vercel Serverless (Edge ISR) + Docker Local Dev Environment"
+      },
+      "roadmap": [
+        {
+          "phase": "Core v1.0",
+          "status": "completed",
+          "description": "Ingesta por IA, editor táctil, QR en peana A5 y visualizador público con filtro reactivo de 14 alérgenos."
+        },
+        {
+          "phase": "Iteración v1.1",
+          "status": "in_planning",
+          "description": "Fotos de platos con compresión WebP, sugerencias del chef y pedidos preliminares en mesa."
+        }
+      ]
+    }
+  ]
+}
