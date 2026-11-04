@@ -76,16 +76,15 @@ function resolveCandidateModels(
   // 2. Modelos reportados dinámicamente por la API de Google
   if (availableModels.length > 0) {
     const priorityList = [
-      "gemini-3.8-flash",
-      "gemini-flash-latest",
+      "gemini-flash-lite-latest",
       "gemini-2.0-flash",
       "gemini-1.5-flash-latest",
-      "gemini-1.5-flash-002",
-      "gemini-2.5-flash",
       "gemini-1.5-flash",
+      "gemini-flash-latest",
+      "gemini-1.5-flash-002",
       "gemini-1.5-flash-8b",
       "gemini-2.0-flash-exp",
-      "gemini-3.8-pro",
+      "gemini-3.8-flash",
       "gemini-1.5-pro-latest",
       "gemini-1.5-pro",
     ];
@@ -115,14 +114,14 @@ function resolveCandidateModels(
 
   // 3. Fallback estático estándar (si ListModels no devolvió resultados)
   const defaultStaticList = [
-    "gemini-3.8-flash",
-    "gemini-flash-latest",
+    "gemini-flash-lite-latest",
     "gemini-2.0-flash",
     "gemini-1.5-flash-latest",
-    "gemini-1.5-flash-002",
-    "gemini-2.5-flash",
     "gemini-1.5-flash",
+    "gemini-flash-latest",
+    "gemini-1.5-flash-002",
     "gemini-1.5-flash-8b",
+    "gemini-3.8-flash",
   ];
 
   for (const m of defaultStaticList) {
@@ -197,7 +196,16 @@ export async function extractMenuFromImages(
         config.apiVersion ? { apiVersion: config.apiVersion } : undefined
       );
 
-      const result = await model.generateContent([prompt, ...imageParts]);
+      const timeoutMs = 25000;
+      const generatePromise = model.generateContent([prompt, ...imageParts]);
+      const timeoutPromise = new Promise<never>((_, reject) => {
+        setTimeout(
+          () => reject(new Error(`Timeout de ${timeoutMs}ms superado para modelo ${config.model}`)),
+          timeoutMs
+        );
+      });
+
+      const result = await Promise.race([generatePromise, timeoutPromise]);
       const responseText = result.response.text();
 
       try {
